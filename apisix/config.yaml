@@ -1,0 +1,49 @@
+# APISIX for the Kayra dev stack: the gateway the reconciler calls
+# (reconciler.gateway_url in kayra.yaml). Traditional mode, its routes in
+# the stack's etcd under /apisix, next to Kayra's /kayra.
+#
+# The routes are loaded by the gateway-init service from apisix/routes.sh,
+# those of the APIs you develop by apisix/add-api.sh (make api-add).
+# See docs/dev-stack.md.
+
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+  enable_control: true
+  control:
+    ip: "0.0.0.0"
+    port: 9092
+
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  admin:
+    enable_admin_ui: true
+    admin_key_required: true
+    # A development key, for a stack bound to 127.0.0.1: never reuse it.
+    admin_key:
+      - name: "admin"
+        key: podman-admin-api-key
+        role: admin                 # admin: manage all configuration data
+
+      - name: "viewer"
+        key: podman-view-api-key
+        role: viewer
+               # 30 seconds
+    allow_admin:
+      - 0.0.0.0/0
+    admin_listen:
+      ip: 0.0.0.0
+      port: 9180
+  etcd:
+    host:
+      - "http://etcd:2379"
+    prefix: /apisix
+    timeout: 30
+
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: 0.0.0.0
+      port: 9091

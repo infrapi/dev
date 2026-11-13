@@ -1,0 +1,7 @@
+# kayra-cli, built by make cli
+bin/
+# the example API's settings, from .env.example
+examples/*/.env
+# a configuration copied out of the image holds its signing keys
+kayra.local.yaml
+compose.override.yaml
