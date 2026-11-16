@@ -27,9 +27,17 @@ tenant, `thetenant`, step by step.
 
 ## 1. Start the stack
 
+Follow [Getting started](getting-started.md) up to step 5: infrapi-cli
+installed, a stack scaffolded with the defaults, started, and the contexts
+saved. In short:
+
+> [!TIP]
+> The commands below use `infrapi-cli`: [install it](https://infrapi.github.io/cli/getting-started/#1-install).
+
 ```bash
 infrapi-cli dev init mystack --no-prompt   # the defaults: infrapi.io, sandbox, eu-west-1
 cd mystack
+make doctor
 make up
 make contexts
 make health

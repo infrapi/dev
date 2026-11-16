@@ -6,18 +6,11 @@ weight: 20
 
 # The dev stack
 
-`infrapi-cli dev init <name>` creates one: it asks for the domain, the
-platform, the region and Kayra's image, renders this repository's template
-(`scaffold.yaml`, `{{ .Project }}/`) into `./<name>`, and writes the
-answers into its `dev.yaml`. Every `make` command below runs in that
-directory. See [infrapi-cli's dev](https://infrapi.github.io/cli/dev/) for
-its flags (`--no-prompt`, `--set domain=...`, `--template`).
-
-```bash
-infrapi-cli dev init mystack
-cd mystack
-make up
-```
+The reference of a stack created by `infrapi-cli dev init`: what runs, how
+it is configured, the make targets, how to reset it. To create and start
+one first, follow [Getting started](getting-started.md). Every `make`
+command below runs in the stack's directory. The commands use
+[infrapi-cli](https://infrapi.github.io/cli/getting-started/#1-install).
 
 | Service | What it is | On the host |
 |---|---|---|
@@ -30,6 +23,28 @@ make up
 
 Every port is bound to `127.0.0.1`: the stack's keys are known. The ports
 above are `dev.yaml`'s defaults.
+
+## The container engine
+
+The stack runs on podman when it is installed, docker otherwise: make's
+`ENGINE`. Override it for one command or for good:
+
+```bash
+make up ENGINE=docker
+export ENGINE=docker
+```
+
+| | podman | docker |
+|---|---|---|
+| compose | `podman compose`, with `podman-compose` or `docker-compose` | the compose plugin, `docker compose` |
+| the host, seen from the containers | `host.containers.internal` | `host.docker.internal`, given by `compose.docker.yaml` on Linux |
+| `make build` (`kayra.src`) | `podman build --format docker`, which keeps the healthcheck | `docker build`, BuildKit |
+
+For anything else, replace the commands themselves: `COMPOSE` (the compose
+command, its `--env-file` and `-f` files included), `BUILD`, and
+`HOST_ALIAS`, the host's name in the containers. For example
+`make up COMPOSE="nerdctl compose --env-file .infrapi-dev/env -f compose.yaml"`.
+`make doctor` checks the engine and the rest of the prerequisites.
 
 ## dev.yaml
 
@@ -68,11 +83,13 @@ What `make render` writes, with `infrapi-cli dev render`:
 ## Make targets
 
 ```text
+make doctor       check the prerequisites: podman or docker, compose, infrapi-cli, curl, go
 make up           render .infrapi-dev/ from dev.yaml (build if kayra.src is set), start the stack
 make render       render it alone; NEW_KEYS=1 for new signing keys
 make build        build kayra-dev:local from kayra.src
 make down         stop the stack, keep etcd's data
 make clean        stop it and wipe etcd: Kayra's objects and APISIX's routes (see Reset)
+make reset-kayra  wipe Kayra's objects only, keep the routes and keys (see Reset)
 make ps | logs    the containers; logs SERVICE=reconciler follows one
 make health       Kayra and the gateway answer
 make routes       load the stack's APISIX routes back as they were
@@ -275,8 +292,7 @@ while tokens from `make contexts` keep working. It keeps APISIX's routes
 (yours from `make api-add` too), the signing keys and your contexts:
 
 ```bash
-podman compose --env-file .infrapi-dev/env -f compose.yaml exec etcd etcdctl del --prefix /kayra
-make restart SERVICE="kayra reconciler"
+make reset-kayra        # etcdctl del --prefix /kayra, then restart kayra and reconciler
 make kickstart          # optional: dev.yaml's APIs and tenants again
 ```
 
@@ -314,7 +330,7 @@ make kickstart          # optional
 ```bash
 for c in dev-admin dev-jdoe dev-nobody; do infrapi-cli context delete $c; done
 make clean
-podman rmi kayra-dev:local      # if you built it from kayra.src
+podman rmi kayra-dev:local      # if you built it from kayra.src (docker rmi with docker)
 rm -rf bin .infrapi-dev
 ```
 

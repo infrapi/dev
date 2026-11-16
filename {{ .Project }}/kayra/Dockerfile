@@ -6,6 +6,7 @@
 # rendered from dev.yaml (.infrapi-dev/kayra.yaml). Built by `make build`:
 #
 #   podman build --format docker --build-context src=../kayra -t kayra-dev:local kayra
+#   docker build --build-context src=../kayra -t kayra-dev:local kayra   (BuildKit)
 
 FROM docker.io/library/golang:1.26-alpine AS build
 WORKDIR /src

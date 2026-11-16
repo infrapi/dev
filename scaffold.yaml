@@ -45,6 +45,7 @@ questions:
 skip:
   - Makefile
   - compose.yaml
+  - compose.docker.yaml
   - .gitignore
   - apisix/*
   - kayra/*

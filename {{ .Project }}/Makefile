@@ -1,7 +1,8 @@
-# InfraPI dev stack: etcd, Kayra (serve, reconciler) and APISIX, on podman,
-# configured by dev.yaml. Needs podman and infrapi-cli (which scaffolded it:
-# infrapi-cli dev init).
+# InfraPI dev stack: etcd, Kayra (serve, reconciler) and APISIX, on podman
+# or docker, configured by dev.yaml. Needs one of them with compose, and
+# infrapi-cli (which scaffolded it: infrapi-cli dev init).
 #
+#   make doctor     check the prerequisites
 #   make up         render .infrapi-dev/ from dev.yaml and start the stack
 #   make contexts   mint tokens and save them as infrapi-cli contexts
 #   make kickstart  create dev.yaml's APIs and tenants in Kayra
@@ -19,7 +20,21 @@ INFRAPI_CLI ?= infrapi-cli
 # ports... make renders it first, and again when dev.yaml changes.
 -include $(DEV_DIR)/env
 
-COMPOSE   ?= podman compose --env-file $(DEV_DIR)/env -f compose.yaml
+# The container engine: podman when it is installed, docker otherwise.
+# Override it, for one command or for good:
+#
+#   make up ENGINE=docker        export ENGINE=docker
+#
+# or replace the commands themselves: make up COMPOSE="nerdctl compose ..."
+ENGINE ?= $(if $(shell command -v podman 2>/dev/null),podman,docker)
+# what the gateway, in a container, calls the host: where your API runs
+HOST_ALIAS ?= $(if $(filter docker,$(ENGINE)),host.docker.internal,host.containers.internal)
+# docker on Linux has no host.docker.internal of its own: compose.docker.yaml
+# gives it one
+COMPOSE_FILES ?= -f compose.yaml $(if $(filter docker,$(ENGINE)),-f compose.docker.yaml)
+COMPOSE   ?= $(ENGINE) compose --env-file $(DEV_DIR)/env $(COMPOSE_FILES)
+# --format docker keeps the image's HEALTHCHECK, which podman's OCI default drops
+BUILD     ?= $(ENGINE) build $(if $(filter podman,$(ENGINE)),--format docker)
 GATEWAY   := http://localhost:$(GATEWAY_PORT)
 ADMIN_URL := http://localhost:$(ADMIN_PORT)
 IMAGE     := kayra-dev:local
@@ -27,7 +42,7 @@ IMAGE     := kayra-dev:local
 # the example API, see docs/create-an-api.md
 EXAMPLE  ?= examples/compute
 API      ?= $(EXAMPLE_API)
-UPSTREAM ?= host.containers.internal:$(EXAMPLE_PORT)
+UPSTREAM ?= $(HOST_ALIAS):$(EXAMPLE_PORT)
 
 # a lib checkout to run the example against, instead of the version its
 # go.mod pins: make example LIB_SRC=../lib
@@ -41,12 +56,25 @@ SUBJECT ?= jdoe
 NEW_KEYS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help render build up down clean restart ps logs health routes token contexts kickstart \
+.PHONY: help doctor render build up down clean reset-kayra restart ps logs health routes token contexts kickstart \
         api-add api-rm example check
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*## ' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
-	@echo; echo "  $(DEV_CONFIG): domain $(DEV_DOMAIN), kayra $(if $(KAYRA_SRC),built from $(KAYRA_SRC),$(KAYRA_IMAGE)), gateway $(GATEWAY)"
+	@echo; echo "  $(DEV_CONFIG): domain $(DEV_DOMAIN), kayra $(if $(KAYRA_SRC),built from $(KAYRA_SRC),$(KAYRA_IMAGE)), gateway $(GATEWAY), engine $(ENGINE)"
+
+doctor: ## Check the prerequisites: the container engine and its compose, infrapi-cli, curl, go
+	@ok=0; \
+	check() { if command -v "$$1" >/dev/null 2>&1; then printf '  ok       %-12s %s\n' "$$1" "$$($$2 2>/dev/null | head -1 | cut -c1-60)"; \
+	          else printf '  MISSING  %-12s %s\n' "$$1" "$$3"; ok=1; fi; }; \
+	check $(ENGINE) "$(ENGINE) --version" "install podman (https://podman.io/docs/installation) or docker, or set ENGINE"; \
+	if $(ENGINE) compose version >/dev/null 2>&1; then printf '  ok       %-12s %s\n' compose "$$($(ENGINE) compose version 2>/dev/null | head -1)"; \
+	else printf '  MISSING  %-12s %s\n' compose "$(ENGINE) compose: podman-compose or docker-compose (podman), the compose plugin (docker)"; ok=1; fi; \
+	check $(INFRAPI_CLI) "$(INFRAPI_CLI) --version" "https://infrapi.github.io/cli/getting-started/#1-install"; \
+	check curl "curl --version" "your package manager"; \
+	if command -v go >/dev/null 2>&1; then printf '  ok       %-12s %s\n' go "$$(go version)"; \
+	else printf '  optional %-12s %s\n' go "only for make example: https://go.dev/dl/"; fi; \
+	echo; echo "  engine $(ENGINE), the host seen from the containers as $(HOST_ALIAS)"; exit $$ok
 
 # ------------------------------------------------------ dev.yaml, rendered
 
@@ -64,7 +92,7 @@ ifeq ($(KAYRA_SRC),)
 	@echo "build: kayra.src is not set in $(DEV_CONFIG): the stack runs $(KAYRA_IMAGE), nothing to build"
 else
 	@test -f "$(KAYRA_SRC)/go.mod" || { echo "no Kayra checkout at $(KAYRA_SRC) (kayra.src in $(DEV_CONFIG))"; exit 1; }
-	podman build --format docker --build-context src=$(KAYRA_SRC) -t $(IMAGE) kayra
+	$(BUILD) --build-context src=$(KAYRA_SRC) -t $(IMAGE) kayra
 endif
 
 up: render $(if $(KAYRA_SRC),build) ## Render, build if kayra.src is set, then start the stack
@@ -85,6 +113,10 @@ down: ## Stop the stack, keep etcd's data
 
 clean: ## Stop the stack and wipe etcd: Kayra's objects and APISIX's routes (see Reset)
 	$(COMPOSE) down -v
+
+reset-kayra: ## Wipe Kayra's objects only (namespaces, APIs, RBAC...), keep the routes and keys
+	$(COMPOSE) exec -T etcd etcdctl del --prefix /kayra
+	$(COMPOSE) restart kayra reconciler
 
 restart: ## Restart SERVICE, or every service
 	$(COMPOSE) restart $(SERVICE)

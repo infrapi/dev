@@ -2,9 +2,10 @@
 # gateway in front of Kayra and of the APIs you develop. Nothing reaches
 # outside the stack's network once the images are pulled.
 #
-#   make up        renders .infrapi-dev/ from dev.yaml, then podman compose up -d
+#   make up        renders .infrapi-dev/ from dev.yaml, then <engine> compose up -d
 #
-# The ${...} come from .infrapi-dev/env (podman compose --env-file), the
+# podman or docker (make's ENGINE). The ${...} come from .infrapi-dev/env
+# (compose --env-file), the
 # configuration Kayra runs with from .infrapi-dev/kayra.yaml: both rendered
 # from dev.yaml. See docs/dev-stack.md.
 
@@ -48,8 +49,9 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT}:9091/tcp"   # prometheus
       - "127.0.0.1:${CONTROL_PORT}:9092/tcp"      # control API
       - "127.0.0.1:${GATEWAY_TLS_PORT}:9443/tcp"  # gateway, TLS
-    # podman resolves host.containers.internal to the host: a route reaches
-    # an API running there, see make api-add
+    # podman resolves host.containers.internal to the host, docker
+    # host.docker.internal (compose.docker.yaml): a route reaches an API
+    # running there, see make api-add
     networks:
       - infrapi
 
@@ -74,7 +76,7 @@ services:
 
   kayra:
     # dev.yaml's kayra.image, or kayra-dev:local built by `make build` from
-    # kayra.src (podman compose cannot pass a checkout as a build context)
+    # kayra.src (compose cannot pass a checkout as a second build context)
     image: ${KAYRA_IMAGE}
     pull_policy: ${KAYRA_PULL_POLICY}
     command: ["serve"]

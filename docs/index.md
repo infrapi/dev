@@ -1,6 +1,6 @@
 ---
 title: InfraPI dev stack
-description: Develop an InfraPI API locally, against Kayra, etcd and APISIX on podman, with no external connection.
+description: Develop an InfraPI API locally, against Kayra, etcd and APISIX on podman or docker, with no external connection.
 weight: 10
 ---
 
@@ -8,12 +8,14 @@ weight: 10
 
 A local InfraPI to develop an API against: Kayra authenticates and
 authorizes every request and reconciles subscriptions, APISIX routes Kayra
-and your API, etcd stores both. Everything runs on podman, configured by
-one file, `dev.yaml`, and nothing reaches outside the stack's network once
-the images are pulled.
+and your API, etcd stores both. Everything runs on podman or docker,
+configured by one file, `dev.yaml`, and nothing reaches outside the stack's
+network once the images are pulled. You create the stack, and talk to it,
+with [infrapi-cli](https://infrapi.github.io/cli/getting-started/#1-install).
 
 | I want to... | Go to |
 |---|---|
+| Install what is needed, create a stack, start it, log in, make a first call | [Getting started](getting-started.md) |
 | Build an API and call it as a tenant, end to end | [Create an API](create-an-api.md) |
 | Change the domain, ports, users, APIs and tenants: `dev.yaml` | [The dev stack](dev-stack.md#devyaml) |
 | Know what runs, how it is configured, the make targets, how to reset | [The dev stack](dev-stack.md) |
