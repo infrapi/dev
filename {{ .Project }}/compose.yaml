@@ -1,10 +1,12 @@
 # InfraPI dev stack: etcd, Kayra (serve and reconciler) and APISIX as the
 # gateway in front of Kayra and of the APIs you develop. Nothing reaches
-# outside the stack's network once the images are built.
+# outside the stack's network once the images are pulled.
 #
-#   make up        builds kayra-dev:local, then podman compose up -d
+#   make up        renders .infrapi-dev/ from dev.yaml, then podman compose up -d
 #
-# See docs/dev-stack.md.
+# The ${...} come from .infrapi-dev/env (podman compose --env-file), the
+# configuration Kayra runs with from .infrapi-dev/kayra.yaml: both rendered
+# from dev.yaml. See docs/dev-stack.md.
 
 name: infrapi-dev
 
@@ -23,7 +25,7 @@ services:
     volumes:
       - etcd-data:/etcd-data
     ports:
-      - "127.0.0.1:2379:2379"
+      - "127.0.0.1:${ETCD_PORT}:2379"
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
       interval: 5s
@@ -41,25 +43,27 @@ services:
       etcd:
         condition: service_healthy
     ports:
-      - "127.0.0.1:9080:9080/tcp"   # gateway: Kayra and your APIs
-      - "127.0.0.1:9180:9180/tcp"   # Admin API and its UI at /ui, keys in apisix/config.yaml
-      - "127.0.0.1:9091:9091/tcp"   # prometheus
-      - "127.0.0.1:9092:9092/tcp"   # control API
-      - "127.0.0.1:9443:9443/tcp"   # gateway, TLS
+      - "127.0.0.1:${GATEWAY_PORT}:9080/tcp"      # gateway: Kayra and your APIs
+      - "127.0.0.1:${ADMIN_PORT}:9180/tcp"        # Admin API and its UI at /ui, keys in apisix/config.yaml
+      - "127.0.0.1:${PROMETHEUS_PORT}:9091/tcp"   # prometheus
+      - "127.0.0.1:${CONTROL_PORT}:9092/tcp"      # control API
+      - "127.0.0.1:${GATEWAY_TLS_PORT}:9443/tcp"  # gateway, TLS
     # podman resolves host.containers.internal to the host: a route reaches
-    # an API running there, see apisix/add-api.sh
+    # an API running there, see make api-add
     networks:
       - infrapi
 
-  # loads apisix/routes.sh into APISIX, then exits
+  # loads the stack's routes (.infrapi-dev/routes) into APISIX, then exits:
+  # Kayra's image has sh and curl
   gateway-init:
-    image: kayra-dev:local
-    pull_policy: never
-    entrypoint: ["sh", "/apisix/routes.sh"]
+    image: ${KAYRA_IMAGE}
+    pull_policy: ${KAYRA_PULL_POLICY}
+    entrypoint: ["sh", "/apisix/routes.sh", "/routes"]
     environment:
       APISIX_ADMIN_URL: http://apisix:9180
     volumes:
-      - ./apisix:/apisix:ro,z
+      - ./apisix/routes.sh:/apisix/routes.sh:ro,z
+      - ./.infrapi-dev/routes:/routes:ro,z
     depends_on:
       apisix:
         condition: service_started
@@ -69,18 +73,21 @@ services:
       - infrapi
 
   kayra:
-    # built by `make build`: podman compose cannot pass the Kayra checkout
-    # as a second build context
-    image: kayra-dev:local
-    pull_policy: never
+    # dev.yaml's kayra.image, or kayra-dev:local built by `make build` from
+    # kayra.src (podman compose cannot pass a checkout as a build context)
+    image: ${KAYRA_IMAGE}
+    pull_policy: ${KAYRA_PULL_POLICY}
     command: ["serve"]
+    volumes: &kayra-config
+      - ./.infrapi-dev/kayra.yaml:/etc/kayra/kayra.yaml:ro,z
+      - ./.infrapi-dev/users.yaml:/etc/kayra/kayra-users.yaml:ro,z
     depends_on:
       etcd:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:${KAYRA_PORT}:8081"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/-/healthz"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081${KAYRA_HEALTHZ}"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -88,10 +95,11 @@ services:
       - infrapi
 
   reconciler:
-    # the same image, so the same configuration and signing keys
-    image: kayra-dev:local
-    pull_policy: never
+    # the same image and configuration, signing keys included
+    image: ${KAYRA_IMAGE}
+    pull_policy: ${KAYRA_PULL_POLICY}
     command: ["reconciler"]
+    volumes: *kayra-config
     depends_on:
       etcd:
         condition: service_healthy

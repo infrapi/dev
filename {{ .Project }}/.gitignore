@@ -1,0 +1,6 @@
+# make example LIB_SRC=...: its go.work
+bin/
+# rendered from dev.yaml by make render: signing keys included
+.infrapi-dev/
+# an example's own settings, to run it outside make example
+examples/*/.env

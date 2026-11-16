@@ -2,48 +2,70 @@
 
 Everything you need to develop an InfraPI API on your machine: Kayra
 (authentication, RBAC, catalog, reconciler), etcd and APISIX as the gateway,
-on podman, with no external connection — tokens are self-signed, users come
-from a file. And an example API, built on
+on podman, with no external connection once the images are pulled — tokens
+are self-signed, users come from a file. All of it configured by one file,
+`dev.yaml`: the domain, the image, the ports, the users, the APIs and
+tenants to start from. And an example API, built on
 [infrapi/lib](https://github.com/infrapi/lib), to start yours from.
 
+This repository is the stack's template, a
+[scaffold](https://github.com/hay-kot/scaffold): `infrapi-cli dev init`
+asks for the domain, platform, region and Kayra image, and renders the
+stack into a directory of your own.
+
 ```text
-               :9080 APISIX ──┬── /apis/{system,catalog,authorization}.infrapi.io, /oauth2  →  kayra :8081
-kayra-cli, curl ──────────────┤
+               :9080 APISIX ──┬── /apis/{system,catalog,authorization}.<domain>, /oauth2  →  kayra :8081
+infrapi-cli, curl ────────────┤
                               └── /apis/<your api>/*  →  your API, on the host
                                         ▲
-              kayra reconciler ─────────┘ reads /apis/<api>/-/openapi.json through APISIX
+              kayra reconciler ─────────┘ reads /apis/<api>/<version>/-/openapi.json through APISIX
 ```
 
 ## Quick start
 
 Podman 4.7 or later with a compose provider (`podman compose version`), Go
-1.26.7 or later, and a checkout of [infrapi/kayra](https://github.com/infrapi/kayra)
-next to this one (or `KAYRA_SRC=<path>`):
+1.26.10 or later for the example API, and
+[infrapi-cli](https://github.com/infrapi/cli). Kayra runs from its released
+image, `ghcr.io/infrapi/kayra`, or from a checkout (`kayra.src` in
+`dev.yaml`):
 
 ```bash
-make up          # build Kayra's image, start the stack
-make contexts    # tokens for admin, jdoe and nobody, as kayra-cli contexts
-export PATH=$PWD/bin:$PATH
-kayra-cli auth whoami
+infrapi-cli dev init mystack   # asks for the domain (infrapi.io), platform, region, Kayra image
+cd mystack
+make up          # render .infrapi-dev/ from dev.yaml, start the stack
+make contexts    # tokens for admin, jdoe and nobody, as infrapi-cli contexts
+make kickstart   # optional: dev.yaml's APIs and tenants, core and sre
+infrapi-cli auth whoami
 ```
 
 Then [create an API](docs/create-an-api.md), end to end. `make help` lists
-every target.
+every target, and [Reset](docs/dev-stack.md#reset) shows how to start over:
+Kayra's objects only, the whole etcd, or new signing keys.
 
 ## Docs
 
 | Page | What it covers |
 |---|---|
 | [Create an API](docs/create-an-api.md) | From an empty module to a tenant calling your API, authorized by Kayra |
-| [The dev stack](docs/dev-stack.md) | The services, the configuration, the users, the gateway's routes, the make targets |
+| [The dev stack](docs/dev-stack.md) | `dev init`, `dev.yaml`, the services, Kayra's configuration and users, the kickstart, the gateway's routes, the make targets, reset |
 
 ## Layout
 
 ```text
-Makefile                 the stack, tokens, routes, the example: make help
-compose.yaml             etcd, kayra, reconciler, apisix, gateway-init, httpbin
-kayra/                   Kayra's image: Dockerfile, configuration template, users
-apisix/                  APISIX's configuration and routes
-examples/compute/        the example API
-docs/                    the docs
+scaffold.yaml                 the template's questions: domain, platform, region, image
+{{ .Project }}/               the stack, rendered into your directory by infrapi-cli dev init
+  dev.yaml                    the stack's settings, the answers in it: everything is rendered from it
+  Makefile                    the stack, tokens, routes, the example: make help
+  compose.yaml                etcd, kayra, reconciler, apisix, gateway-init, httpbin
+  kayra/                      Kayra's image, built from a checkout (kayra.src)
+  apisix/                     APISIX's configuration, and the script loading the routes
+  examples/compute/           the example API
+docs/                         the docs
+```
+
+To change the template itself, render it to try it:
+
+```bash
+infrapi-cli dev init --template . --no-prompt test-stack   # gitignored
+cd test-stack && make check && make up
 ```

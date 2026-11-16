@@ -1,0 +1,56 @@
+# The InfraPI dev stack, as a scaffold (github.com/hay-kot/scaffold):
+#
+#   infrapi-cli dev init [name]
+#
+# asks the questions below, and renders {{ .Project }}/ into ./<name>: a
+# dev.yaml with the answers, and the stack that runs from it. Every file
+# but dev.yaml and README.md is copied as it is (skip): they hold
+# templates of their own (compose's ${...}, Kayra's {{ .Subscription... }}).
+
+questions:
+  - name: domain
+    prompt:
+      message: Domain
+      description: Kayra's API domain. Its groups are system.<domain>, catalog.<domain>, authorization.<domain>, and every API is <name>.<domain>
+      default: infrapi.io
+    required: true
+    validate:
+      match:
+        regex: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$'
+        message: a lower case DNS name of two labels or more, like infrapi.io
+
+  - name: platform
+    prompt:
+      message: Platform
+      description: Kayra's and the APIs' platform, as infrapi/lib takes it
+      options: [sandbox, preprod, prod]
+      default: sandbox
+    required: true
+
+  - name: region
+    prompt:
+      message: Region
+      default: eu-west-1
+    required: true
+
+  - name: image
+    prompt:
+      message: Kayra image
+      description: the image Kayra and its reconciler run; set kayra.src in dev.yaml to build from a checkout instead
+      default: ghcr.io/infrapi/kayra:latest
+    required: true
+
+# Patterns name files, relative to {{ .Project }}/: a pattern matching a
+# directory (apisix/** matches apisix itself) breaks the render.
+skip:
+  - Makefile
+  - compose.yaml
+  - .gitignore
+  - apisix/*
+  - kayra/*
+  - examples/*/*
+
+messages:
+  post: |
+    {{ .Project }}: domain {{ .Scaffold.domain }}, platform {{ .Scaffold.platform }}, region {{ .Scaffold.region }}, kayra {{ .Scaffold.image }}.
+    Everything else is in {{ .Project }}/dev.yaml: edit it, then make up.

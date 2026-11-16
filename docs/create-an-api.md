@@ -18,29 +18,35 @@ its code to a tenant's user creating one through the gateway:
 7. [Call it](#7-call-it)
 8. [Change it](#8-change-it)
 
-Every command runs from the root of this repository.
+Every command runs in a stack created by `infrapi-cli dev init` with its
+defaults, `dev.yaml` as it is: domain `infrapi.io`, platform `sandbox`,
+the gateway on `localhost:9080`. With another `domain`, every `infrapi.io` below is
+yours: `compute.<domain>`, `catalog.<domain>`... `make kickstart` creates
+other tenants and APIs to start from. This walkthrough onboards its own
+tenant, `thetenant`, step by step.
 
 ## 1. Start the stack
 
 ```bash
+infrapi-cli dev init mystack --no-prompt   # the defaults: infrapi.io, sandbox, eu-west-1
+cd mystack
 make up
 make contexts
-export PATH=$PWD/bin:$PATH
 make health
 # {"status":"ok"}  kayra
 # {"status":"ok"}  gateway
 ```
 
-`make contexts` saves three `kayra-cli` contexts, all on the gateway at
+`make contexts` saves three `infrapi-cli` contexts, all on the gateway at
 `http://localhost:9080`: `dev-admin`, a sysadmin and the current one,
 `dev-jdoe`, a member of the tenant's group `sandbox-thetenant-admins`, and
 `dev-nobody`, who belongs to nothing (see [the stack](dev-stack.md#contexts)).
 The `curl` examples read their tokens:
 
 ```bash
-ADMIN=$(kayra-cli context token dev-admin)
-JDOE=$(kayra-cli context token dev-jdoe)
-NOBODY=$(kayra-cli context token dev-nobody)
+ADMIN=$(infrapi-cli context token dev-admin)
+JDOE=$(infrapi-cli context token dev-jdoe)
+NOBODY=$(infrapi-cli context token dev-nobody)
 GW=http://localhost:9080
 META='"metadata": {"namespace": "thetenant", "region": "eu-west-1", "platform": "sandbox"}'
 ```
@@ -51,21 +57,27 @@ An InfraPI API is a Go service built on
 [infrapi/lib](https://github.com/infrapi/lib): `server.NewServerGin` gives
 the engine (health, metrics, OpenAPI, RFC 9457 errors), `server.APIGroup`
 the URL layout every API shares,
-`/apis/<name>.<domain>/<version>/namespaces/<namespace>/<resource>`, and
+`/apis/<group>/<version>/namespaces/<namespace>/<resource>`, and
 `auth.Client` asks Kayra who the caller is and whether they may act.
+
+The group is named in full, `compute.infrapi.io`: that is the name the API
+is registered under in Kayra. Kayra's own domain is not the API's concern: the client
+is given Kayra's URL and reads the rest from its
+`/.well-known/kayra.json`.
 
 `examples/compute/main.go`, the wiring:
 
 ```go
-var group = api.Group{Name: "compute", Domain: "infrapi.io", Version: "v1"}
+// COMPUTE_API_GROUP: compute.infrapi.io, compute.<domain> under make example
+group := api.Group{Name: name, Version: "v1"}
 
-// APIDomain: Kayra's app.api_domain, where its check endpoint lives
-kayra, err := auth.NewClient(auth.ClientOptions{BaseURL: authURL, APIDomain: group.Domain})
+// Kayra's URL only: its check endpoint comes from its /.well-known/kayra.json
+kayra, err := auth.NewClient(auth.ClientOptions{BaseURL: authURL})
 // who the caller is: Kayra's /oauth2/userinfo, on every route added after
-engine, err := server.NewServerGin(app, server.WithAuth(kayra.Middleware()))
+engine, err := server.NewServerGin(app, []string{group.Root()}, server.WithAuth(kayra.Middleware()))
 // /apis/compute.infrapi.io/v1/namespaces/:namespace
 routes, err := server.APIGroup(engine, group)
-// whether they may: Kayra's /apis/authorization.infrapi.io/v1/check, every request
+// whether they may: Kayra's check endpoint, on every request
 routes.Use(kayra.RequireAccess())
 register(routes, newStore())
 ```
@@ -87,22 +99,27 @@ func register(r gin.IRouter, s *store) {
 check access themselves: they read the namespace with `server.Namespace(c)`
 and answer errors with `server.AbortError(c, errors.NotFound(...))`.
 
-The engine describes its routes at `/-/openapi.json`: that is where Kayra
-learns the API's resources, `vms` here, through the gateway. Nothing to
-write for it.
+The engine serves its own endpoints under the group's root, `group.Root()`:
+`/apis/compute.infrapi.io/v1/-/healthz`, `-/metrics`, `-/docs`, and
+`-/openapi.json`, which describes its routes. That is where Kayra learns
+the API's resources, `vms` here, through the gateway, at the version the
+registration names (`v1` unless set). Nothing to write for it.
 
 > [!NOTE]
 > **An API with its own contract**
 >
-> With `server.WithOpenAPI`, `/-/openapi.json` describes only the
-> engine's `/-/` endpoints, the contract being under `/-/openapi/`: Kayra
-> would see no resource. Route `<api>-openapi` to a JSON document of the
-> API's `/apis/...` paths instead (`apisix/add-api.sh`).
+> With `server.WithOpenAPI`, `<root>/-/openapi.json` describes only the
+> engine's `-/` endpoints, the contract being under `<root>/-/openapi/`:
+> Kayra would see no resource. Give the gateway a route of its own for
+> `GET /apis/<api>/<version>/-/openapi.json`, rewritten to the contract,
+> a JSON document of the API's `/apis/...` paths.
 
-Settings come from a dotenv file, `examples/compute/.env.example`: the
-`INFRAPI_APP_*` keys of `lib`, and `COMPUTE_AUTH_URL`, Kayra's URL, here
-through the gateway. It
-listens on `0.0.0.0:8080`, for APISIX to reach it from its container.
+Settings come from a dotenv file: the `INFRAPI_APP_*` keys of `lib`,
+`COMPUTE_API_GROUP`, the API's group, and `COMPUTE_AUTH_URL`, Kayra's URL,
+here through the gateway. `make example` renders it from `dev.yaml`
+(`.infrapi-dev/example.env`). `examples/compute/.env.example` is the same
+for running it on its own. It listens on `0.0.0.0:8080` (`example.port`),
+for APISIX to reach it from its container.
 
 ## 3. Run it, behind the gateway
 
@@ -121,28 +138,29 @@ callers:
 
 ```bash
 make api-add
-# add-api: /apis/compute.infrapi.io/* -> host.containers.internal:8080
-curl -s $GW/apis/compute.infrapi.io/-/openapi.json | jq '.paths | keys'
-# ["/-/docs", "/-/healthz", …, "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms", "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms/{name}"]
+# api: /apis/compute.infrapi.io/* -> host.containers.internal:8080
+curl -s $GW/apis/compute.infrapi.io/v1/-/openapi.json | jq '.paths | keys'
+# ["/apis/compute.infrapi.io/v1/-/docs", "/apis/compute.infrapi.io/v1/-/healthz", …, "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms", "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms/{name}"]
 ```
 
-`make api-add API=<api> UPSTREAM=<host:port>` for another API.
+`make api-add API=<api> UPSTREAM=<host:port>` for another API, `make api-rm`
+to remove the route.
 
 ## 4. Onboard a tenant
 
 As `dev-admin`: a namespace, `thetenant`, and the cluster RBAC that lets
 its admins manage its subscriptions and its own RBAC.
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli context use dev-admin
-kayra-cli create system namespaces -d '{"name": "thetenant"}'
-kayra-cli create authorization clustergroups \
+infrapi-cli context use dev-admin
+infrapi-cli create system namespaces -d '{"name": "thetenant"}'
+infrapi-cli create authorization clustergroups \
   -d "{\"name\": \"thetenant-admins\", $META, \"groups\": [\"sandbox-core-sysadmin\", \"sandbox-thetenant-admins\"]}"
-kayra-cli create authorization clusterroles \
+infrapi-cli create authorization clusterroles \
   -d "{\"name\": \"thetenant-admin-role\", $META, \"rules\": [{\"apis\": [\"catalog.infrapi.io\", \"authorization.infrapi.io\"], \"resources\": [\"*\"], \"verbs\": [\"*\"]}]}"
-kayra-cli create authorization clusterrolebindings \
+infrapi-cli create authorization clusterrolebindings \
   -d "{\"name\": \"thetenant-admin-binding\", $META, \"role\": \"thetenant-admin-role\", \"groups\": [\"thetenant-admins\"]}"
 ```
 
@@ -167,17 +185,17 @@ spec through the gateway, runs the `dev` pipeline
 ([the stack](dev-stack.md#the-reconcile-pipeline)) and activates the
 subscription.
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli create catalog apiregistrations \
+infrapi-cli create catalog apiregistrations \
   -d '{"name": "compute.infrapi.io", "short_name": "compute", "active": true, "owner": "sre"}'
-kayra-cli create catalog -n thetenant subscriptions -d '{"api": "compute.infrapi.io"}'
+infrapi-cli create catalog -n thetenant subscriptions -d '{"api": "compute.infrapi.io"}'
 
 # a few seconds later
-kayra-cli get catalog -n thetenant subscriptions compute.infrapi.io -o json
+infrapi-cli get catalog -n thetenant subscriptions compute.infrapi.io -o json
 # {"api": "compute.infrapi.io", "active": true, "state": "success", "synced": true, …}
-kayra-cli apis --api-group compute
+infrapi-cli apis --api-group compute
 # NAME  SHORTNAME  APIGROUP            NAMESPACED  VERBS
 # vms   compute    compute.infrapi.io  true        create,delete,get,list
 ```
@@ -210,10 +228,10 @@ catalog: reconciler: … activated subscription thetenant/compute.infrapi.io
 `jdoe` is in the tenant's group, but nothing in the namespace grants it
 `vms` yet: Kayra's check refuses them.
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli get compute -n thetenant vms --context dev-jdoe
+infrapi-cli get compute -n thetenant vms --context dev-jdoe
 # Error: Forbidden (403): you are not a member of namespace "thetenant": neither your user id nor any of your groups is listed in any of its groups
 ```
 
@@ -228,17 +246,17 @@ The namespace's own RBAC grants it: a group of the namespace naming the
 identity provider's group, a role on the API's resources, a binding of the
 two.
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli create authorization -n thetenant groups \
+infrapi-cli create authorization -n thetenant groups \
   -d "{\"name\": \"devs\", $META, \"groups\": [\"sandbox-thetenant-admins\"]}"
-kayra-cli create authorization -n thetenant roles \
+infrapi-cli create authorization -n thetenant roles \
   -d "{\"name\": \"vms-admin\", $META, \"rules\": [{\"apis\": [\"compute.infrapi.io\"], \"resources\": [\"vms\"], \"verbs\": [\"*\"]}]}"
-kayra-cli create authorization -n thetenant rolebindings \
+infrapi-cli create authorization -n thetenant rolebindings \
   -d "{\"name\": \"devs-vms-admin\", $META, \"role\": \"vms-admin\", \"groups\": [\"devs\"]}"
 
-kayra-cli auth can-i create vms --api compute.infrapi.io --namespace thetenant --context dev-jdoe
+infrapi-cli auth can-i create vms --api compute.infrapi.io --namespace thetenant --context dev-jdoe
 # yes
 ```
 
@@ -265,20 +283,20 @@ any other.
 
 As `jdoe`, through the gateway:
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli create compute -n thetenant vms -d '{"name": "web-1", "cpus": 2}' --context dev-jdoe
+infrapi-cli create compute -n thetenant vms -d '{"name": "web-1", "cpus": 2}' --context dev-jdoe
 # NAMESPACE  NAME   CREATED AT                 UPDATED AT
 # thetenant  web-1  2026-11-13T14:48:24+01:00  -
-kayra-cli get compute -n thetenant vms web-1 -o json --context dev-jdoe
+infrapi-cli get compute -n thetenant vms web-1 -o json --context dev-jdoe
 # {"name": "web-1", "cpus": 2, "memory_mb": 1024, "created_at": "2026-11-13T13:48:24Z"}
-kayra-cli get compute -n thetenant vms --context dev-jdoe
-kayra-cli create compute -n thetenant vms -d '{"name": "web-1"}' --context dev-jdoe
+infrapi-cli get compute -n thetenant vms --context dev-jdoe
+infrapi-cli create compute -n thetenant vms -d '{"name": "web-1"}' --context dev-jdoe
 # Error: Already exists (409): vm "web-1" already exists in namespace "thetenant"
-kayra-cli get compute -n thetenant vms --context dev-nobody
+infrapi-cli get compute -n thetenant vms --context dev-nobody
 # Error: Forbidden (403): you are not a member of namespace "thetenant": …
-kayra-cli delete compute -n thetenant vms web-1 --context dev-jdoe
+infrapi-cli delete compute -n thetenant vms web-1 --context dev-jdoe
 # vms "web-1" deleted
 ```
 
@@ -304,11 +322,11 @@ curl -s -X DELETE $VMS/web-1 -H "Authorization: Bearer $JDOE" -o /dev/null -w '%
 Add a resource (a route under `register`), restart `make example`, then
 have Kayra read the spec again, and grant it in a role:
 
-**kayra-cli**
+**infrapi-cli**
 
 ```bash
-kayra-cli update catalog apiregistrations compute.infrapi.io/sync -d '{}'
-kayra-cli apis --api-group compute
+infrapi-cli update catalog apiregistrations compute.infrapi.io/sync -d '{}'
+infrapi-cli apis --api-group compute
 ```
 
 **curl**

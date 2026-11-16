@@ -32,7 +32,7 @@ func newStore() *store { return &store{vms: map[string]map[string]VM{}} }
 
 // register mounts the vms resource on the API group: list, create, get,
 // delete. Kayra learns it from the specification infrapi/lib generates
-// from these routes, at /-/openapi.json.
+// from these routes, at /apis/<group>/v1/-/openapi.json.
 func register(r gin.IRouter, s *store) {
 	r.GET("/vms", s.list)
 	r.POST("/vms", s.create)

@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	github.com/gin-gonic/gin v1.12.0
-	github.com/infrapi/lib v0.12.3
+	github.com/infrapi/lib v0.16.0
 )
 
 require (

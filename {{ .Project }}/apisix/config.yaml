@@ -2,8 +2,8 @@
 # (reconciler.gateway_url in kayra.yaml). Traditional mode, its routes in
 # the stack's etcd under /apisix, next to Kayra's /kayra.
 #
-# The routes are loaded by the gateway-init service from apisix/routes.sh,
-# those of the APIs you develop by apisix/add-api.sh (make api-add).
+# The routes are loaded by the gateway-init service (apisix/routes.sh, the
+# bodies rendered from dev.yaml), those of the APIs you develop by make api-add.
 # See docs/dev-stack.md.
 
 apisix:
