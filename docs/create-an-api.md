@@ -1,7 +1,7 @@
 ---
 title: Create an API
 description: From a Go service built on lib to a tenant calling it through the gateway, authenticated and authorized by Kayra, its subscription reconciled.
-weight: 30
+weight: 20
 ---
 
 # Create an API
@@ -21,9 +21,9 @@ its code to a tenant's user creating one through the gateway:
 Every command runs in a stack created by `infrapi-cli dev init` with its
 defaults, `dev.yaml` as it is: domain `infrapi.io`, platform `sandbox`,
 the gateway on `localhost:9080`. With another `domain`, every `infrapi.io` below is
-yours: `compute.<domain>`, `catalog.<domain>`... `infrapi-cli dev kickstart` creates
-other tenants and APIs to start from. This walkthrough onboards its own
-tenant, `thetenant`, step by step.
+yours: `compute.<domain>`, `catalog.<domain>`... It starts from the empty
+stack of Getting started, and creates everything step by step: the API, a
+tenant, `thetenant`, its subscription and its users' access.
 
 ## 1. Start the stack
 
@@ -35,8 +35,8 @@ saved. In short:
 > The commands below use `infrapi-cli`: [install it](https://infrapi.github.io/cli/getting-started/#1-install).
 
 ```bash
-infrapi-cli dev init mystack --no-prompt   # the defaults: infrapi.io, sandbox, eu-west-1
-cd mystack
+infrapi-cli dev init compute --no-prompt   # the defaults: infrapi.io, sandbox, eu-west-1
+cd compute
 infrapi-cli dev doctor
 infrapi-cli dev up
 infrapi-cli dev contexts
@@ -48,7 +48,7 @@ infrapi-cli dev health
 `infrapi-cli dev contexts` saves three `infrapi-cli` contexts, all on the gateway at
 `http://localhost:9080`: `dev-admin`, a sysadmin and the current one,
 `dev-jdoe`, a member of the tenant's group `sandbox-thetenant-admins`, and
-`dev-nobody`, who belongs to nothing (see [the stack](dev-stack.md#contexts)).
+`dev-nobody`, who belongs to nothing (see [the stack](dev-stack.md#users-and-tokens)).
 The `curl` examples read their tokens:
 
 ```bash
@@ -352,3 +352,6 @@ reconcile mode calling them (see Kayra's
 [subscriptions](https://github.com/infrapi/kayra/blob/main/docs/architecture/subscriptions.md#http-step-pipeline)).
 
 `infrapi-cli dev api rm` removes the API's routes, `infrapi-cli dev clean` everything.
+
+Next: [The dev stack](dev-stack.md), how the stack you used here works,
+and how to change it or start over.

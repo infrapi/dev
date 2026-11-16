@@ -49,25 +49,7 @@ users:
     attributes: {email: nobody@example.com, name: No Body}
     groups: []
 
-# infrapi-cli dev kickstart: these APIs and tenants, created in Kayra, then a first
-# sync of every API. A name without a dot is <name>.<domain>. Every API
-# has the gateway's stub spec until it gets a route of its own
-# (infrapi-cli dev api add).
-apis:
-  - {name: dev, owner: sre-a}
-  - {name: compute, owner: sre-a}
-  - {name: puppet, owner: sre-a}
-  - {name: objectstorage, owner: sre-a}
-  - {name: telemetry, owner: sre-b}
-
-tenants:
-  # admins: the groups that run the tenant. They manage its catalog and
-  # RBAC (cluster RBAC on catalog and authorization) and have read-write on
-  # every API in its namespace. subscriptions: "all", or a list of APIs.
-  - {name: core, admins: [{{ .Scaffold.platform }}-core-sysadmin], subscriptions: all}
-  - {name: sre, admins: [{{ .Scaffold.platform }}-core-sysadmin], subscriptions: all}
-
 # The example API, examples/compute (infrapi-cli dev example, dev api add).
 example:
-  api: compute       # <name>.<domain>, one of apis above
+  api: compute       # its group: <name>.<domain>, compute.{{ .Scaffold.domain }}
   port: 8080         # on the host, where the gateway reaches it

@@ -4,8 +4,7 @@ Everything you need to develop an InfraPI API on your machine: Kayra
 (authentication, RBAC, catalog, reconciler), etcd and APISIX as the gateway,
 on podman or docker, with no external connection once the images are pulled — tokens
 are self-signed, users come from a file. All of it configured by one file,
-`dev.yaml`: the domain, the image, the ports, the users, the APIs and
-tenants to start from. And an example API, built on
+`dev.yaml`: the domain, the image, the ports, the users. And an example API, built on
 [infrapi/lib](https://github.com/infrapi/lib), to start yours from.
 
 This repository is the stack's template, a
@@ -28,17 +27,16 @@ podman 4.7+ or docker (and compose), and
 [infrapi-cli installed](https://infrapi.github.io/cli/getting-started/#1-install):
 
 ```bash
-infrapi-cli dev init mystack   # asks for the domain (infrapi.io), platform, region, Kayra image
-cd mystack
+infrapi-cli dev init compute   # asks for the domain (infrapi.io), platform, region, Kayra image
+cd compute
 infrapi-cli dev doctor         # checks podman or docker, its compose, go
 infrapi-cli dev up             # render .infrapi-dev/ from dev.yaml, start the stack
 infrapi-cli dev contexts       # tokens for admin, jdoe and nobody, as infrapi-cli contexts
-infrapi-cli dev kickstart      # optional: dev.yaml's APIs and tenants, core and sre
 infrapi-cli auth whoami
 ```
 
 Then [create an API](docs/create-an-api.md), end to end. `infrapi-cli dev --help` lists
-every command, and [Reset](docs/dev-stack.md#reset) shows how to start over:
+every command, and [Reset](docs/dev-stack.md#start-over) shows how to start over:
 Kayra's objects only, the whole etcd, or new signing keys.
 
 ## Docs
@@ -47,7 +45,7 @@ Kayra's objects only, the whole etcd, or new signing keys.
 |---|---|
 | [Getting started](docs/getting-started.md) | Install infrapi-cli, the prerequisites, scaffold, start, log in, a first call |
 | [Create an API](docs/create-an-api.md) | From an empty module to a tenant calling your API, authorized by Kayra |
-| [The dev stack](docs/dev-stack.md) | `dev init`, `dev.yaml`, the services, Kayra's configuration and users, the kickstart, the gateway's routes, the commands, reset |
+| [The dev stack](docs/dev-stack.md) | How the stack works: the everyday commands, `dev.yaml`, users and tokens, the gateway, how to start over |
 
 ## Layout
 

@@ -50,7 +50,7 @@ Once the stack is scaffolded, `infrapi-cli dev doctor` checks all of this for yo
 ## 3. Scaffold the stack
 
 ```bash
-infrapi-cli dev init mystack
+infrapi-cli dev init compute
 ```
 
 It asks four questions. Enter keeps the default:
@@ -63,10 +63,10 @@ It asks four questions. Enter keeps the default:
 | Kayra image | `ghcr.io/infrapi/kayra:latest` | the Kayra release the stack runs |
 
 `--no-prompt` takes every default, and `--set domain=example.org` answers
-one question, for a script say. It creates `./mystack`:
+one question, for a script say. It creates `./compute`:
 
 ```text
-mystack/
+compute/
   dev.yaml             the stack's settings, your answers in it: edit it, then infrapi-cli dev up
   compose.yaml         the containers: etcd, kayra, reconciler, apisix, gateway-init, httpbin
   compose.docker.yaml  docker only: gives the gateway the host's address
@@ -76,14 +76,14 @@ mystack/
 ```
 
 `dev.yaml` is the only file you edit. Besides your answers, it holds the
-ports, the users of the stack (`admin`, `jdoe`, `nobody`), and the APIs and
-tenants `infrapi-cli dev kickstart` creates. [The dev stack](dev-stack.md#devyaml) has
+ports, the users of the stack (`admin`, `jdoe`, `nobody`) and the example
+API's settings. [The dev stack](dev-stack.md#change-the-stack-devyaml) has
 every setting.
 
 ## 4. Start it
 
 ```bash
-cd mystack
+cd compute
 infrapi-cli dev doctor
 infrapi-cli dev up
 infrapi-cli dev health
@@ -148,21 +148,15 @@ The tokens last 8 hours: run `infrapi-cli dev contexts` again when they expire.
 
 ## 6. Make a first call
 
-`infrapi-cli dev kickstart` creates the APIs and tenants of `dev.yaml` in Kayra, as
-`dev-admin`. By default these are five APIs (`dev`, `compute`, `puppet`,
-`objectstorage`, `telemetry`) and two tenants, `core` and `sre`, each
-subscribed to every API.
-
-```bash
-infrapi-cli dev kickstart
-```
+The stack is empty: Kayra serves its own API groups, and nothing else is
+registered yet. Ask it what it serves, as `dev-admin`:
 
 **infrapi-cli**
 
 ```bash
-infrapi-cli apis                                     # every API group and its resources
-infrapi-cli get catalog apiregistrations             # the registered APIs
-infrapi-cli get catalog -n core subscriptions        # core's subscriptions, synced by the reconciler
+infrapi-cli apis                              # every API group and its resources: Kayra's own, for now
+infrapi-cli get system namespaces             # the tenants: none yet
+infrapi-cli get catalog apiregistrations      # the registered APIs: none yet
 ```
 
 **curl**
@@ -170,18 +164,23 @@ infrapi-cli get catalog -n core subscriptions        # core's subscriptions, syn
 ```bash
 GW=http://localhost:9080
 curl -s $GW/apis -H "Authorization: Bearer $ADMIN"
+curl -s $GW/apis/system.infrapi.io/v1/namespaces -H "Authorization: Bearer $ADMIN"
 curl -s $GW/apis/catalog.infrapi.io/v1/apiregistrations -H "Authorization: Bearer $ADMIN"
-curl -s $GW/apis/catalog.infrapi.io/v1/namespaces/core/subscriptions -H "Authorization: Bearer $ADMIN"
 ```
 
-The kickstart's APIs have no code behind them: the gateway answers for them
-with a stub spec, one resource, `widgets`. Writing a real one is the next
-step.
+The same calls as `dev-nobody` are refused: try
+`infrapi-cli get system namespaces --context dev-nobody`.
 
 ## 7. Next
 
-| Next | Go to |
-|---|---|
-| Write an API, route it, onboard a tenant, call it as one of its users | [Create an API](create-an-api.md) |
-| Change the domain, ports, users, APIs or tenants | [The dev stack: dev.yaml](dev-stack.md#devyaml) |
-| Stop the stack, wipe it, start over | `infrapi-cli dev down` keeps the data; [Reset](dev-stack.md#reset) |
+Read the docs in this order:
+
+1. **[Create an API](create-an-api.md)**: write an API, run it behind the
+   gateway, register it in Kayra, onboard a tenant, and call it as one of
+   its users. It fills this empty stack, step by step.
+2. **[The dev stack](dev-stack.md)**: how the stack works, the everyday
+   commands, `dev.yaml`, users and tokens, the gateway, and how to start
+   over.
+
+`infrapi-cli dev down` stops the stack and keeps its data;
+`infrapi-cli dev up` starts it again.

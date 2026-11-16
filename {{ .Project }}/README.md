@@ -12,7 +12,6 @@ Everything is configured by `dev.yaml`: edit it, then `infrapi-cli dev up`.
 infrapi-cli dev doctor      # checks podman or docker, its compose, go
 infrapi-cli dev up          # render .infrapi-dev/ from dev.yaml, start the stack (--engine docker to force docker)
 infrapi-cli dev contexts    # tokens for admin, jdoe and nobody, as infrapi-cli contexts
-infrapi-cli dev kickstart   # optional: dev.yaml's APIs and tenants
 infrapi-cli auth whoami
 ```
 
