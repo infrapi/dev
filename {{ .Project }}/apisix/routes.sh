@@ -13,7 +13,7 @@
 #   healthz        GET /healthz                     {"status":"ok"}
 #   httpbin        /httpbin/*                       the httpbin service
 #
-# An API you develop gets its own route, matched before these: make api-add.
+# An API you develop gets its own route, matched before these: infrapi-cli dev api add.
 set -eu
 
 DIR=${1:?usage: routes.sh <dir>}
@@ -28,7 +28,7 @@ until curl -fsS -o /dev/null -H "X-API-KEY: $KEY" "$ADMIN/routes"; do
 done
 
 for f in "$DIR"/*.json; do
-  [ -e "$f" ] || { echo "routes: no route in $DIR: make render" >&2; exit 1; }
+  [ -e "$f" ] || { echo "routes: no route in $DIR: infrapi-cli dev render" >&2; exit 1; }
   id=$(basename "$f" .json)
   id=${id#[0-9][0-9]-}
   curl -fsS -o /dev/null -X PUT "$ADMIN/routes/$id" \

@@ -2,12 +2,12 @@
 # gateway in front of Kayra and of the APIs you develop. Nothing reaches
 # outside the stack's network once the images are pulled.
 #
-#   make up        renders .infrapi-dev/ from dev.yaml, then <engine> compose up -d
+#   infrapi-cli dev up    renders .infrapi-dev/ from dev.yaml, then <engine> compose up -d
 #
-# podman or docker (make's ENGINE). The ${...} come from .infrapi-dev/env
-# (compose --env-file), the
-# configuration Kayra runs with from .infrapi-dev/kayra.yaml: both rendered
-# from dev.yaml. See docs/dev-stack.md.
+# podman or docker (infrapi-cli dev --engine). The ${...} come from
+# .infrapi-dev/env (compose --env-file), the configuration Kayra runs with
+# from .infrapi-dev/kayra.yaml: both rendered from dev.yaml. See
+# docs/dev-stack.md.
 
 name: infrapi-dev
 
@@ -51,7 +51,7 @@ services:
       - "127.0.0.1:${GATEWAY_TLS_PORT}:9443/tcp"  # gateway, TLS
     # podman resolves host.containers.internal to the host, docker
     # host.docker.internal (compose.docker.yaml): a route reaches an API
-    # running there, see make api-add
+    # running there, see infrapi-cli dev api add
     networks:
       - infrapi
 
@@ -75,7 +75,7 @@ services:
       - infrapi
 
   kayra:
-    # dev.yaml's kayra.image, or kayra-dev:local built by `make build` from
+    # dev.yaml's kayra.image, or kayra-dev:local built by `infrapi-cli dev build` from
     # kayra.src (compose cannot pass a checkout as a second build context)
     image: ${KAYRA_IMAGE}
     pull_policy: ${KAYRA_PULL_POLICY}

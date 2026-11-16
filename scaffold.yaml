@@ -43,7 +43,6 @@ questions:
 # Patterns name files, relative to {{ .Project }}/: a pattern matching a
 # directory (apisix/** matches apisix itself) breaks the render.
 skip:
-  - Makefile
   - compose.yaml
   - compose.docker.yaml
   - .gitignore
@@ -54,4 +53,4 @@ skip:
 messages:
   post: |
     {{ .Project }}: domain {{ .Scaffold.domain }}, platform {{ .Scaffold.platform }}, region {{ .Scaffold.region }}, kayra {{ .Scaffold.image }}.
-    Everything else is in {{ .Project }}/dev.yaml: edit it, then make up.
+    Everything else is in {{ .Project }}/dev.yaml: edit it, then infrapi-cli dev up.

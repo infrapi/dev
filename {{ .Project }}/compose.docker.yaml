@@ -1,6 +1,6 @@
-# Added by make when ENGINE=docker: docker on Linux has no
+# Added by infrapi-cli dev with the docker engine: docker on Linux has no
 # host.docker.internal of its own (Docker Desktop has). host-gateway gives the
-# gateway the host, where make api-add routes your API.
+# gateway the host, where infrapi-cli dev api add routes your API.
 services:
   apisix:
     extra_hosts:

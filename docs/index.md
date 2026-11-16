@@ -18,7 +18,7 @@ with [infrapi-cli](https://infrapi.github.io/cli/getting-started/#1-install).
 | Install what is needed, create a stack, start it, log in, make a first call | [Getting started](getting-started.md) |
 | Build an API and call it as a tenant, end to end | [Create an API](create-an-api.md) |
 | Change the domain, ports, users, APIs and tenants: `dev.yaml` | [The dev stack](dev-stack.md#devyaml) |
-| Know what runs, how it is configured, the make targets, how to reset | [The dev stack](dev-stack.md) |
+| Know what runs, how it is configured, the commands, how to reset | [The dev stack](dev-stack.md) |
 
 Examples of calls to Kayra and to your API are given twice: with
 `infrapi-cli`, then with `curl`.

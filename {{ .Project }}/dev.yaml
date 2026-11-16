@@ -1,9 +1,9 @@
 # {{ .Project }}: an InfraPI dev stack, scaffolded by infrapi-cli dev init.
 #
 # The dev stack's settings. Every file the stack runs with is rendered from
-# this one into .infrapi-dev/ (make render, and make up renders first):
+# this one into .infrapi-dev/ (infrapi-cli dev render, and dev up renders first):
 # Kayra's configuration and users, the gateway's routes, the ports, the
-# example API's settings. Edit it, then make up. See docs/dev-stack.md.
+# example API's settings. Edit it, then infrapi-cli dev up. See docs/dev-stack.md.
 
 # Kayra's app.api_domain. Its own groups are system.<domain>,
 # catalog.<domain> and authorization.<domain>, and every API below is
@@ -16,7 +16,7 @@ location: dc1
 kayra:
   # The image Kayra and its reconciler run, as released by infrapi/kayra.
   image: {{ .Scaffold.image }}
-  # Or build it from a checkout instead (make build): set src, and image
+  # Or build it from a checkout instead (infrapi-cli dev build): set src, and image
   # is ignored.
   # src: ../kayra
 
@@ -31,7 +31,7 @@ ports:
   etcd: 2379
 
 # The groups Kayra's cluster endpoints require (namespaces, API
-# registrations, cluster RBAC). make contexts mints dev-admin with the first.
+# registrations, cluster RBAC). infrapi-cli dev contexts mints dev-admin with the first.
 sysadmin_groups:
   - {{ .Scaffold.platform }}-core-sysadmin
 
@@ -49,10 +49,10 @@ users:
     attributes: {email: nobody@example.com, name: No Body}
     groups: []
 
-# make kickstart: these APIs and tenants, created in Kayra, then a first
+# infrapi-cli dev kickstart: these APIs and tenants, created in Kayra, then a first
 # sync of every API. A name without a dot is <name>.<domain>. Every API
-# has the gateway's stub spec until it gets a route of its own (make
-# api-add).
+# has the gateway's stub spec until it gets a route of its own
+# (infrapi-cli dev api add).
 apis:
   - {name: dev, owner: sre-a}
   - {name: compute, owner: sre-a}
@@ -67,7 +67,7 @@ tenants:
   - {name: core, admins: [{{ .Scaffold.platform }}-core-sysadmin], subscriptions: all}
   - {name: sre, admins: [{{ .Scaffold.platform }}-core-sysadmin], subscriptions: all}
 
-# The example API, examples/compute (make example, make api-add).
+# The example API, examples/compute (infrapi-cli dev example, dev api add).
 example:
   api: compute       # <name>.<domain>, one of apis above
   port: 8080         # on the host, where the gateway reaches it

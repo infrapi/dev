@@ -20,8 +20,9 @@ you are logged in as their administrator.
 
 ## 1. Install infrapi-cli
 
-`infrapi-cli` is InfraPI's command line. It creates the stack, renders its
-configuration, and is the client you call Kayra with.
+`infrapi-cli` is InfraPI's command line. It creates the stack, runs it,
+and is the client you call Kayra with: nothing else to install to drive the
+stack, no `make`.
 
 ```bash
 go install github.com/infrapi/cli/cmd/infrapi-cli@latest
@@ -36,16 +37,15 @@ Or take a release archive: see
 | What | Why | Check with |
 |---|---|---|
 | podman 4.7+ **or** docker, with compose | runs the stack's containers | `podman compose version`, or `docker compose version` |
-| `curl` | the health checks, the `curl` examples | `curl --version` |
-| Go 1.26.10+ | only to run the example API (`make example`) | `go version` |
-| `make` | runs the stack | `make --version` |
+| Go 1.27.3+ | only to run the example API (`infrapi-cli dev example`) | `go version` |
+| `curl` | only for the `curl` examples of these docs | `curl --version` |
 
 podman is used when it is installed, docker otherwise. To use docker
-although podman is installed, set `ENGINE=docker` (step 4). With podman,
-`podman compose` needs a compose provider: `podman-compose`, or
-`docker-compose`.
+although podman is installed, add `--engine docker`, or set `ENGINE=docker`
+(step 4). With podman, `podman compose` needs a compose provider:
+`podman-compose`, or `docker-compose`.
 
-Once the stack is scaffolded, `make doctor` checks all of this for you.
+Once the stack is scaffolded, `infrapi-cli dev doctor` checks all of this for you.
 
 ## 3. Scaffold the stack
 
@@ -67,8 +67,7 @@ one question, for a script say. It creates `./mystack`:
 
 ```text
 mystack/
-  dev.yaml             the stack's settings, your answers in it: edit it, then make up
-  Makefile             everything you run: make help
+  dev.yaml             the stack's settings, your answers in it: edit it, then infrapi-cli dev up
   compose.yaml         the containers: etcd, kayra, reconciler, apisix, gateway-init, httpbin
   compose.docker.yaml  docker only: gives the gateway the host's address
   apisix/              the gateway's configuration
@@ -78,22 +77,22 @@ mystack/
 
 `dev.yaml` is the only file you edit. Besides your answers, it holds the
 ports, the users of the stack (`admin`, `jdoe`, `nobody`), and the APIs and
-tenants `make kickstart` creates. [The dev stack](dev-stack.md#devyaml) has
+tenants `infrapi-cli dev kickstart` creates. [The dev stack](dev-stack.md#devyaml) has
 every setting.
 
 ## 4. Start it
 
 ```bash
 cd mystack
-make doctor
-make up
-make health
+infrapi-cli dev doctor
+infrapi-cli dev up
+infrapi-cli dev health
 # {"status":"ok"}  kayra
 # {"status":"ok"}  gateway
 ```
 
-`make doctor` prints `ok` or `MISSING` for each prerequisite, and how to
-install what is missing. `make up` renders Kayra's configuration from
+`infrapi-cli dev doctor` prints `ok` or `MISSING` for each prerequisite, and how to
+install what is missing. `infrapi-cli dev up` renders Kayra's configuration from
 `dev.yaml` into `.infrapi-dev/`, signing keys included, pulls the images and
 starts the containers. The first start takes a minute, for the pulls.
 
@@ -103,18 +102,20 @@ starts the containers. The first start takes a minute, for the pulls.
 | the gateway | `http://localhost:9080` | APISIX, in front of Kayra and your APIs: what you call |
 | APISIX's Admin API | `http://localhost:9180` | its routes, and a UI at `/ui/` |
 
-With docker while podman is installed: `make up ENGINE=docker`, or
-`export ENGINE=docker` once. `make help` lists every target.
+With docker while podman is installed: `infrapi-cli dev up --engine docker`,
+or `export ENGINE=docker` once. `infrapi-cli dev --help` lists every command,
+and each prints the commands it runs, `+ podman compose ... up -d` say.
+They work from any directory of the stack.
 
 ## 5. Log in
 
 On a real Kayra you log in with `infrapi-cli login --server <url>`: your
 browser goes through the server's identity provider. The dev stack has no
-identity provider, so Kayra signs the tokens itself. `make contexts` asks it
+identity provider, so Kayra signs the tokens itself. `infrapi-cli dev contexts` asks it
 for three, and saves each as an `infrapi-cli` context:
 
 ```bash
-make contexts
+infrapi-cli dev contexts
 infrapi-cli context list
 # CURRENT  NAME        PROVIDER  SERVER                 EXPIRY
 # *        dev-admin             http://localhost:9080  -
@@ -143,17 +144,17 @@ ADMIN=$(infrapi-cli context token dev-admin)
 curl -s -X POST http://localhost:9080/oauth2/userinfo -H "Authorization: Bearer $ADMIN"
 ```
 
-The tokens last 8 hours: run `make contexts` again when they expire.
+The tokens last 8 hours: run `infrapi-cli dev contexts` again when they expire.
 
 ## 6. Make a first call
 
-`make kickstart` creates the APIs and tenants of `dev.yaml` in Kayra, as
+`infrapi-cli dev kickstart` creates the APIs and tenants of `dev.yaml` in Kayra, as
 `dev-admin`. By default these are five APIs (`dev`, `compute`, `puppet`,
 `objectstorage`, `telemetry`) and two tenants, `core` and `sre`, each
 subscribed to every API.
 
 ```bash
-make kickstart
+infrapi-cli dev kickstart
 ```
 
 **infrapi-cli**
@@ -183,4 +184,4 @@ step.
 |---|---|
 | Write an API, route it, onboard a tenant, call it as one of its users | [Create an API](create-an-api.md) |
 | Change the domain, ports, users, APIs or tenants | [The dev stack: dev.yaml](dev-stack.md#devyaml) |
-| Stop the stack, wipe it, start over | `make down` keeps the data; [Reset](dev-stack.md#reset) |
+| Stop the stack, wipe it, start over | `infrapi-cli dev down` keeps the data; [Reset](dev-stack.md#reset) |

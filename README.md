@@ -30,15 +30,15 @@ podman 4.7+ or docker (and compose), and
 ```bash
 infrapi-cli dev init mystack   # asks for the domain (infrapi.io), platform, region, Kayra image
 cd mystack
-make doctor      # checks podman or docker, compose, infrapi-cli, curl, go
-make up          # render .infrapi-dev/ from dev.yaml, start the stack
-make contexts    # tokens for admin, jdoe and nobody, as infrapi-cli contexts
-make kickstart   # optional: dev.yaml's APIs and tenants, core and sre
+infrapi-cli dev doctor         # checks podman or docker, its compose, go
+infrapi-cli dev up             # render .infrapi-dev/ from dev.yaml, start the stack
+infrapi-cli dev contexts       # tokens for admin, jdoe and nobody, as infrapi-cli contexts
+infrapi-cli dev kickstart      # optional: dev.yaml's APIs and tenants, core and sre
 infrapi-cli auth whoami
 ```
 
-Then [create an API](docs/create-an-api.md), end to end. `make help` lists
-every target, and [Reset](docs/dev-stack.md#reset) shows how to start over:
+Then [create an API](docs/create-an-api.md), end to end. `infrapi-cli dev --help` lists
+every command, and [Reset](docs/dev-stack.md#reset) shows how to start over:
 Kayra's objects only, the whole etcd, or new signing keys.
 
 ## Docs
@@ -47,7 +47,7 @@ Kayra's objects only, the whole etcd, or new signing keys.
 |---|---|
 | [Getting started](docs/getting-started.md) | Install infrapi-cli, the prerequisites, scaffold, start, log in, a first call |
 | [Create an API](docs/create-an-api.md) | From an empty module to a tenant calling your API, authorized by Kayra |
-| [The dev stack](docs/dev-stack.md) | `dev init`, `dev.yaml`, the services, Kayra's configuration and users, the kickstart, the gateway's routes, the make targets, reset |
+| [The dev stack](docs/dev-stack.md) | `dev init`, `dev.yaml`, the services, Kayra's configuration and users, the kickstart, the gateway's routes, the commands, reset |
 
 ## Layout
 
@@ -55,7 +55,6 @@ Kayra's objects only, the whole etcd, or new signing keys.
 scaffold.yaml                 the template's questions: domain, platform, region, image
 {{ .Project }}/               the stack, rendered into your directory by infrapi-cli dev init
   dev.yaml                    the stack's settings, the answers in it: everything is rendered from it
-  Makefile                    the stack, tokens, routes, the example: make help
   compose.yaml                etcd, kayra, reconciler, apisix, gateway-init, httpbin
   compose.docker.yaml         docker only: the host's address for the gateway
   kayra/                      Kayra's image, built from a checkout (kayra.src)
@@ -68,5 +67,5 @@ To change the template itself, render it to try it:
 
 ```bash
 infrapi-cli dev init --template . --no-prompt test-stack   # gitignored
-cd test-stack && make check && make up
+cd test-stack && infrapi-cli dev check && infrapi-cli dev up
 ```

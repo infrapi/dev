@@ -3,7 +3,7 @@
 // infrapi/lib, every request authenticated and authorized by Kayra.
 //
 // Settings come from the dotenv file named by INFRAPI_CONFIG_DOTENV_FILE
-// (.env by default; make example renders one from dev.yaml): the
+// (.env by default; infrapi-cli dev example renders one from dev.yaml): the
 // INFRAPI_APP_* keys of infrapi/lib, COMPUTE_API_GROUP, the API group
 // (compute.infrapi.io unless set), and COMPUTE_AUTH_URL, Kayra's URL. See
 // docs/create-an-api.md.

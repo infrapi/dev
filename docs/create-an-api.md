@@ -21,7 +21,7 @@ its code to a tenant's user creating one through the gateway:
 Every command runs in a stack created by `infrapi-cli dev init` with its
 defaults, `dev.yaml` as it is: domain `infrapi.io`, platform `sandbox`,
 the gateway on `localhost:9080`. With another `domain`, every `infrapi.io` below is
-yours: `compute.<domain>`, `catalog.<domain>`... `make kickstart` creates
+yours: `compute.<domain>`, `catalog.<domain>`... `infrapi-cli dev kickstart` creates
 other tenants and APIs to start from. This walkthrough onboards its own
 tenant, `thetenant`, step by step.
 
@@ -37,15 +37,15 @@ saved. In short:
 ```bash
 infrapi-cli dev init mystack --no-prompt   # the defaults: infrapi.io, sandbox, eu-west-1
 cd mystack
-make doctor
-make up
-make contexts
-make health
+infrapi-cli dev doctor
+infrapi-cli dev up
+infrapi-cli dev contexts
+infrapi-cli dev health
 # {"status":"ok"}  kayra
 # {"status":"ok"}  gateway
 ```
 
-`make contexts` saves three `infrapi-cli` contexts, all on the gateway at
+`infrapi-cli dev contexts` saves three `infrapi-cli` contexts, all on the gateway at
 `http://localhost:9080`: `dev-admin`, a sysadmin and the current one,
 `dev-jdoe`, a member of the tenant's group `sandbox-thetenant-admins`, and
 `dev-nobody`, who belongs to nothing (see [the stack](dev-stack.md#contexts)).
@@ -76,7 +76,7 @@ is given Kayra's URL and reads the rest from its
 `examples/compute/main.go`, the wiring:
 
 ```go
-// COMPUTE_API_GROUP: compute.infrapi.io, compute.<domain> under make example
+// COMPUTE_API_GROUP: compute.infrapi.io, compute.<domain> under infrapi-cli dev example
 group := api.Group{Name: name, Version: "v1"}
 
 // Kayra's URL only: its check endpoint comes from its /.well-known/kayra.json
@@ -124,7 +124,7 @@ registration names (`v1` unless set). Nothing to write for it.
 
 Settings come from a dotenv file: the `INFRAPI_APP_*` keys of `lib`,
 `COMPUTE_API_GROUP`, the API's group, and `COMPUTE_AUTH_URL`, Kayra's URL,
-here through the gateway. `make example` renders it from `dev.yaml`
+here through the gateway. `infrapi-cli dev example` renders it from `dev.yaml`
 (`.infrapi-dev/example.env`). `examples/compute/.env.example` is the same
 for running it on its own. It listens on `0.0.0.0:8080` (`example.port`),
 for APISIX to reach it from its container.
@@ -134,24 +134,24 @@ for APISIX to reach it from its container.
 In a second terminal:
 
 ```bash
-make example
+infrapi-cli dev example
 # …	info	compute	serving	{"address": "0.0.0.0:8080", "api": "/apis/compute.infrapi.io/v1", "auth": "http://localhost:9080"}
 ```
 
-`make example LIB_SRC=../lib` runs it against a `lib` checkout instead
+`infrapi-cli dev example --lib-src ../lib` runs it against a `lib` checkout instead
 of the version its `go.mod` pins, to try a change to `lib`.
 
 Then route it through the gateway, for Kayra's reconciler and for its
 callers:
 
 ```bash
-make api-add
+infrapi-cli dev api add
 # api: /apis/compute.infrapi.io/* -> host.containers.internal:8080
 curl -s $GW/apis/compute.infrapi.io/v1/-/openapi.json | jq '.paths | keys'
 # ["/apis/compute.infrapi.io/v1/-/docs", "/apis/compute.infrapi.io/v1/-/healthz", …, "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms", "/apis/compute.infrapi.io/v1/namespaces/{namespace}/vms/{name}"]
 ```
 
-`make api-add API=<api> UPSTREAM=<host:port>` for another API, `make api-rm`
+`infrapi-cli dev api add <api> <host:port>` for another API, `infrapi-cli dev api rm`
 to remove the route.
 
 ## 4. Onboard a tenant
@@ -222,7 +222,7 @@ curl -s $GW/apis/catalog.infrapi.io/v1/namespaces/thetenant/subscriptions/comput
 curl -s $GW/apis "${H[@]}" | jq '.[] | select(.api == "compute.infrapi.io") | .resources'
 ```
 
-`make logs SERVICE=reconciler` shows it at work:
+`infrapi-cli dev logs reconciler` shows it at work:
 
 ```text
 catalog: reconciler: … stored openapi spec of "compute.infrapi.io" (1 resources)
@@ -327,7 +327,7 @@ curl -s -X DELETE $VMS/web-1 -H "Authorization: Bearer $JDOE" -o /dev/null -w '%
 
 ## 8. Change it
 
-Add a resource (a route under `register`), restart `make example`, then
+Add a resource (a route under `register`), restart `infrapi-cli dev example`, then
 have Kayra read the spec again, and grant it in a role:
 
 **infrapi-cli**
@@ -351,4 +351,4 @@ tenant serves its own sync endpoints, and its registration names a
 reconcile mode calling them (see Kayra's
 [subscriptions](https://github.com/infrapi/kayra/blob/main/docs/architecture/subscriptions.md#http-step-pipeline)).
 
-`make api-rm` removes the API's routes, `make clean` everything.
+`infrapi-cli dev api rm` removes the API's routes, `infrapi-cli dev clean` everything.

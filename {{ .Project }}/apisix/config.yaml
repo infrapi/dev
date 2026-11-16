@@ -3,7 +3,7 @@
 # the stack's etcd under /apisix, next to Kayra's /kayra.
 #
 # The routes are loaded by the gateway-init service (apisix/routes.sh, the
-# bodies rendered from dev.yaml), those of the APIs you develop by make api-add.
+# bodies rendered from dev.yaml), those of the APIs you develop by infrapi-cli dev api add.
 # See docs/dev-stack.md.
 
 apisix:

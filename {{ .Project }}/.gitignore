@@ -1,6 +1,5 @@
-# make example LIB_SRC=...: its go.work
-bin/
-# rendered from dev.yaml by make render: signing keys included
+# rendered from dev.yaml by infrapi-cli dev render: signing keys included
+# (and the go.work of dev example --lib-src)
 .infrapi-dev/
-# an example's own settings, to run it outside make example
+# an example's own settings, to run it outside infrapi-cli dev example
 examples/*/.env
