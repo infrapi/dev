@@ -101,6 +101,10 @@ What `dev up` writes into `.infrapi-dev/` (gitignored), from `dev.yaml`:
 | `env` | the domain, image and ports, for compose |
 | `example.env` | the example API's settings |
 
+Every render prints the diff of what it changed. A file edited by hand in
+`.infrapi-dev/` is put back at the next render: `infrapi-cli dev render
+--dry-run` shows the diff first, and writes nothing.
+
 ## Users and tokens
 
 The stack has no identity provider: Kayra signs its tokens itself, with the

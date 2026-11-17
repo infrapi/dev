@@ -163,11 +163,15 @@ its admins manage its subscriptions and its own RBAC.
 
 ```bash
 infrapi-cli context use dev-admin
+
 infrapi-cli create system namespaces -d '{"name": "thetenant"}'
+
 infrapi-cli create authorization clustergroups \
   -d "{\"name\": \"thetenant-admins\", $META, \"groups\": [\"sandbox-core-sysadmin\", \"sandbox-thetenant-admins\"]}"
+
 infrapi-cli create authorization clusterroles \
   -d "{\"name\": \"thetenant-admin-role\", $META, \"rules\": [{\"apis\": [\"catalog.infrapi.io\", \"authorization.infrapi.io\"], \"resources\": [\"*\"], \"verbs\": [\"*\"]}]}"
+
 infrapi-cli create authorization clusterrolebindings \
   -d "{\"name\": \"thetenant-admin-binding\", $META, \"role\": \"thetenant-admin-role\", \"groups\": [\"thetenant-admins\"]}"
 ```
@@ -176,11 +180,15 @@ infrapi-cli create authorization clusterrolebindings \
 
 ```bash
 H=(-H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json")
+
 curl -s -X POST $GW/apis/system.infrapi.io/v1/namespaces "${H[@]}" -d '{"name": "thetenant"}'
+
 curl -s -X POST $GW/apis/authorization.infrapi.io/v1/clustergroups "${H[@]}" \
   -d "{\"name\": \"thetenant-admins\", $META, \"groups\": [\"sandbox-core-sysadmin\", \"sandbox-thetenant-admins\"]}"
+
 curl -s -X POST $GW/apis/authorization.infrapi.io/v1/clusterroles "${H[@]}" \
   -d "{\"name\": \"thetenant-admin-role\", $META, \"rules\": [{\"apis\": [\"catalog.infrapi.io\", \"authorization.infrapi.io\"], \"resources\": [\"*\"], \"verbs\": [\"*\"]}]}"
+
 curl -s -X POST $GW/apis/authorization.infrapi.io/v1/clusterrolebindings "${H[@]}" \
   -d "{\"name\": \"thetenant-admin-binding\", $META, \"role\": \"thetenant-admin-role\", \"groups\": [\"thetenant-admins\"]}"
 ```
@@ -198,11 +206,13 @@ subscription.
 ```bash
 infrapi-cli create catalog apiregistrations \
   -d '{"name": "compute.infrapi.io", "short_name": "compute", "active": true, "owner": "sre"}'
+
 infrapi-cli create catalog -n thetenant subscriptions -d '{"api": "compute.infrapi.io"}'
 
 # a few seconds later
 infrapi-cli get catalog -n thetenant subscriptions compute.infrapi.io -o json
 # {"api": "compute.infrapi.io", "active": true, "state": "success", "synced": true, …}
+
 infrapi-cli apis --api-group compute
 # NAME  SHORTNAME  APIGROUP            NAMESPACED  VERBS
 # vms   compute    compute.infrapi.io  true        create,delete,get,list
@@ -213,12 +223,14 @@ infrapi-cli apis --api-group compute
 ```bash
 curl -s -X POST $GW/apis/catalog.infrapi.io/v1/apiregistrations "${H[@]}" \
   -d '{"name": "compute.infrapi.io", "short_name": "compute", "active": true, "owner": "sre"}'
+
 curl -s -X POST $GW/apis/catalog.infrapi.io/v1/namespaces/thetenant/subscriptions "${H[@]}" \
   -d '{"api": "compute.infrapi.io"}'
 
 # a few seconds later
 curl -s $GW/apis/catalog.infrapi.io/v1/namespaces/thetenant/subscriptions/compute.infrapi.io "${H[@]}"
 # {"api":"compute.infrapi.io","active":true,"state":"success","synced":true,…}
+
 curl -s $GW/apis "${H[@]}" | jq '.[] | select(.api == "compute.infrapi.io") | .resources'
 ```
 
@@ -259,8 +271,10 @@ two.
 ```bash
 infrapi-cli create authorization -n thetenant groups \
   -d "{\"name\": \"devs\", $META, \"groups\": [\"sandbox-thetenant-admins\"]}"
+
 infrapi-cli create authorization -n thetenant roles \
   -d "{\"name\": \"vms-admin\", $META, \"rules\": [{\"apis\": [\"compute.infrapi.io\"], \"resources\": [\"vms\"], \"verbs\": [\"*\"]}]}"
+
 infrapi-cli create authorization -n thetenant rolebindings \
   -d "{\"name\": \"devs-vms-admin\", $META, \"role\": \"vms-admin\", \"groups\": [\"devs\"]}"
 
@@ -272,10 +286,13 @@ infrapi-cli auth can-i create vms --api compute.infrapi.io --namespace thetenant
 
 ```bash
 NS=$GW/apis/authorization.infrapi.io/v1/namespaces/thetenant
+
 curl -s -X POST $NS/groups "${H[@]}" \
   -d "{\"name\": \"devs\", $META, \"groups\": [\"sandbox-thetenant-admins\"]}"
+
 curl -s -X POST $NS/roles "${H[@]}" \
   -d "{\"name\": \"vms-admin\", $META, \"rules\": [{\"apis\": [\"compute.infrapi.io\"], \"resources\": [\"vms\"], \"verbs\": [\"*\"]}]}"
+
 curl -s -X POST $NS/rolebindings "${H[@]}" \
   -d "{\"name\": \"devs-vms-admin\", $META, \"role\": \"vms-admin\", \"groups\": [\"devs\"]}"
 
@@ -297,13 +314,18 @@ As `jdoe`, through the gateway:
 infrapi-cli create compute -n thetenant vms -d '{"name": "web-1", "cpus": 2}' --context dev-jdoe
 # NAMESPACE  NAME   CREATED AT                 UPDATED AT
 # thetenant  web-1  2026-11-13T14:48:24+01:00  -
+
 infrapi-cli get compute -n thetenant vms web-1 -o json --context dev-jdoe
 # {"name": "web-1", "cpus": 2, "memory_mb": 1024, "created_at": "2026-11-13T13:48:24Z"}
+
 infrapi-cli get compute -n thetenant vms --context dev-jdoe
+
 infrapi-cli create compute -n thetenant vms -d '{"name": "web-1"}' --context dev-jdoe
 # Error: Already exists (409): vm "web-1" already exists in namespace "thetenant"
+
 infrapi-cli get compute -n thetenant vms --context dev-nobody
 # Error: Forbidden (403): you are not a member of namespace "thetenant": …
+
 infrapi-cli delete compute -n thetenant vms web-1 --context dev-jdoe
 # vms "web-1" deleted
 ```
@@ -312,15 +334,21 @@ infrapi-cli delete compute -n thetenant vms web-1 --context dev-jdoe
 
 ```bash
 VMS=$GW/apis/compute.infrapi.io/v1/namespaces/thetenant/vms
+
 curl -s -X POST $VMS -H "Authorization: Bearer $JDOE" -H "Content-Type: application/json" -d '{"name": "web-1", "cpus": 2}'
 # {"name":"web-1","cpus":2,"memory_mb":1024,"created_at":"2026-11-13T13:48:24Z"}
+
 curl -s $VMS/web-1 -H "Authorization: Bearer $JDOE"
+
 curl -s $VMS -H "Authorization: Bearer $JDOE"
 # [{"name":"web-1","cpus":2,"memory_mb":1024,"created_at":"2026-11-13T13:48:24Z"}]
+
 curl -s -X POST $VMS -H "Authorization: Bearer $JDOE" -H "Content-Type: application/json" -d '{"name": "web-1"}'
 # {"title":"Already exists","status":409,"detail":"vm \"web-1\" already exists in namespace \"thetenant\"",…}
+
 curl -s $VMS -H "Authorization: Bearer $NOBODY"
 # {"title":"Forbidden","status":403,…}
+
 curl -s -X DELETE $VMS/web-1 -H "Authorization: Bearer $JDOE" -o /dev/null -w '%{http_code}\n'
 # 204
 ```
@@ -334,6 +362,7 @@ have Kayra read the spec again, and grant it in a role:
 
 ```bash
 infrapi-cli update catalog apiregistrations compute.infrapi.io/sync -d '{}'
+
 infrapi-cli apis --api-group compute
 ```
 
@@ -341,6 +370,7 @@ infrapi-cli apis --api-group compute
 
 ```bash
 curl -s -X PUT $GW/apis/catalog.infrapi.io/v1/apiregistrations/compute.infrapi.io/sync "${H[@]}" -d '{}'
+
 curl -s $GW/apis "${H[@]}" | jq '.[] | select(.api == "compute.infrapi.io") | .resources'
 ```
 
