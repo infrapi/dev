@@ -7,7 +7,9 @@ on podman or docker, and an example API to start yours from. Domain
 `{{ .Scaffold.region }}`, Kayra `{{ .Scaffold.image }}`.
 
 Everything is configured by `dev.yaml`: edit it, then `infrapi-cli dev render`
-shows the change, `infrapi-cli dev up --force` applies it.
+shows the change, `infrapi-cli dev up --force` applies it. What the stack
+runs, compose.yaml included, is rendered from it into `.infrapi-dev/`:
+don't edit it, override anything from `dev.yaml` instead.
 
 ```bash
 infrapi-cli dev doctor      # checks podman or docker, its compose, go

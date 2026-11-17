@@ -6,7 +6,7 @@
 # infrapi-cli dev render shows the diff, and infrapi-cli dev up --force
 # applies it. Don't edit .infrapi-dev/: dev up stops on any change there.
 # Anything a rendered file has can be overridden here: kayra.config,
-# kayra.keys, gateway.routes, example.env, compose.env. A map is merged key
+# kayra.keys, gateway.config, gateway.routes, example.env, compose.env. A map is merged key
 # by key, a list or a value replaced, null removes the key.
 # See docs/dev-stack.md.
 
@@ -34,17 +34,22 @@ kayra:
   #   self: keys/self.pem
   #   local: keys/local.pem
 
-# The gateway's own routes (kayra, openapi-stub, hooks, healthz, httpbin),
+# APISIX's configuration, .infrapi-dev/apisix/config.yaml, merged with
+# config (keep its admin key); and its own routes (kayra, openapi-stub,
+# hooks, healthz, httpbin),
 # merged by id, as APISIX's Admin API takes a route: a new id is a new
 # route, null removes one. Your API's route: infrapi-cli dev api add.
 # gateway:
+#   config:
+#     apisix: {enable_ipv6: true}
 #   routes:
 #     hooks:
 #       plugins: {mocking: {response_example: '{"status":"failed"}'}}
 #     httpbin: null
 
-# Added to, or replacing in, .infrapi-dev/env, the variables compose.yaml
-# reads. A compose.override.yaml beside compose.yaml is read too.
+# Added to, or replacing in, .infrapi-dev/env, the variables compose reads.
+# A compose.override.yaml beside this file is read after
+# .infrapi-dev/compose.yaml, its paths relative to .infrapi-dev/.
 # compose:
 #   env:
 #     MY_VAR: value

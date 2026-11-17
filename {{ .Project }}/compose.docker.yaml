@@ -1,7 +1,0 @@
-# Added by infrapi-cli dev with the docker engine: docker on Linux has no
-# host.docker.internal of its own (Docker Desktop has). host-gateway gives the
-# gateway the host, where infrapi-cli dev api add routes your API.
-services:
-  apisix:
-    extra_hosts:
-      - "host.docker.internal:host-gateway"

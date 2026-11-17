@@ -98,15 +98,22 @@ from what `dev.yaml` renders, it shows the diff and stops.
 A mistake is caught before anything starts: an unknown key, a malformed
 name, a platform infrapi/lib does not take, a port used twice.
 
-What `dev up` writes into `.infrapi-dev/` (gitignored), from `dev.yaml`:
+What runs is rendered into `.infrapi-dev/` (gitignored), from `dev.yaml`
+and from templates infrapi-cli carries:
 
 | File | |
 |---|---|
+| `compose.yaml` | the containers; `compose.docker.yaml` adds the host's address with docker |
 | `kayra.yaml`, `users.yaml` | Kayra's configuration and its users, read by both Kayra containers |
 | `keys/*.pem` | the keys Kayra signs tokens with: created once, then kept |
-| `routes/*.json` | the gateway's own routes |
+| `apisix/config.yaml` | APISIX's configuration |
+| `apisix/routes.sh`, `routes/*.json` | the script `gateway-init` runs, and the gateway's own routes it loads |
 | `env` | the domain, image and ports, for compose |
 | `example.env` | the example API's settings |
+| `kayra/Dockerfile` | only to build Kayra from a checkout (`kayra.src`) |
+
+Beside `dev.yaml`, the stack has only your code, `examples/`, and an
+optional `compose.override.yaml`.
 
 Don't edit them: they are rendered from `dev.yaml`, and an edit made by
 hand is lost at the next `--force`. A render that would change one, from
@@ -154,7 +161,10 @@ removing the key.
 | `kayra.yaml` | `kayra.config`, merged into Kayra's configuration; the template's comments stay |
 | `routes/*.json` | `gateway.routes.<id>`, merged into the route `<id>` as APISIX's Admin API takes it; a new id is a new route, `null` removes one |
 | `example.env` | `example.env`, variables replaced or added |
-| `env` | `compose.env`, variables replaced or added, for `compose.yaml` to read (`${MY_VAR}`) |
+| `env` | `compose.env`, variables replaced or added, for compose to read (`${MY_VAR}`) |
+| `apisix/config.yaml` | `gateway.config`, merged into APISIX's configuration. Keep its admin key: infrapi-cli calls the Admin API with it |
+| `compose.yaml`, `compose.docker.yaml` | none: a `compose.override.yaml` beside `dev.yaml` is read after them, a service of your own or a volume say |
+| `apisix/routes.sh`, `kayra/Dockerfile` | none: infrapi-cli's own; mount a script of your own from `compose.override.yaml` |
 | `keys/*.pem` | `kayra.keys.self`, `kayra.keys.local`: key files of your own, relative to `dev.yaml` |
 | `users.yaml` | `users` |
 
@@ -189,10 +199,21 @@ too, when `gateway-init` runs, or by `infrapi-cli dev routes`. A route
 only taken out of `dev.yaml` stays in the gateway until
 `infrapi-cli dev clean`: set it to `null` instead.
 
-The files beside `dev.yaml` are yours, not rendered: edit `compose.yaml`,
-`apisix/config.yaml` or `apisix/routes.sh` as you need. A
-`compose.override.yaml` beside `compose.yaml` is read too, a service of
-your own say: infrapi-cli adds it to compose's files.
+`compose.override.yaml`, beside `dev.yaml`, is yours: infrapi-cli adds it
+to compose's files, after `.infrapi-dev/compose.yaml`. Compose's project
+directory is `.infrapi-dev/`, so its relative paths are from there:
+`../my-script.sh` for a file beside `dev.yaml`.
+
+```yaml
+# compose.override.yaml
+services:
+  apisix:
+    environment:
+      APISIX_STAND_ALONE: "false"
+  mock:
+    image: docker.io/mockserver/mockserver
+    networks: [infrapi]
+```
 
 ## Users and tokens
 
@@ -301,7 +322,7 @@ one, add `--engine docker` to a command, or `export ENGINE=docker` for good.
 | | podman | docker |
 |---|---|---|
 | compose | `podman compose`, with `podman-compose` or `docker-compose` installed | the compose plugin, `docker compose` |
-| your machine, seen from the containers | `host.containers.internal` | `host.docker.internal`, added by the stack's `compose.docker.yaml` on Linux |
+| your machine, seen from the containers | `host.containers.internal` | `host.docker.internal`, added by `.infrapi-dev/compose.docker.yaml` on Linux |
 
 For another engine, replace the commands themselves. Every `infrapi-cli dev`
 command takes these flags, or their environment variables:

@@ -53,13 +53,14 @@ Kayra's objects only, the whole etcd, or new signing keys.
 scaffold.yaml                 the template's questions: domain, platform, region, image
 {{ .Project }}/               the stack, rendered into your directory by infrapi-cli dev init
   dev.yaml                    the stack's settings, the answers in it: everything is rendered from it
-  compose.yaml                etcd, kayra, reconciler, apisix, gateway-init, httpbin
-  compose.docker.yaml         docker only: the host's address for the gateway
-  kayra/                      Kayra's image, built from a checkout (kayra.src)
-  apisix/                     APISIX's configuration, and the script loading the routes
   examples/compute/           the example API
 docs/                         the docs
 ```
+
+The files the stack runs with, `compose.yaml`, APISIX's configuration and
+routes, Kayra's, its Dockerfile, are not in the template: infrapi-cli
+renders them into the stack's `.infrapi-dev/` from `dev.yaml`
+(`cli/internal/dev/templates` in infrapi/cli).
 
 To change the template itself, render it to try it:
 

@@ -1,4 +1,4 @@
-# rendered from dev.yaml by infrapi-cli dev render: signing keys included
+# what the stack runs, rendered from dev.yaml by infrapi-cli: signing keys included
 # (and the go.work of dev example --lib-src)
 .infrapi-dev/
 # an example's own settings, to run it outside infrapi-cli dev example
