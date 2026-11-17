@@ -13,6 +13,9 @@
 #   healthz        GET /healthz                     {"status":"ok"}
 #   httpbin        /httpbin/*                       the httpbin service
 #
+# dev.yaml's gateway.routes changes them, adds others, or removes one (null):
+# <dir>/removed lists the ids to delete, one a line.
+#
 # An API you develop gets its own route, matched before these: infrapi-cli dev api add.
 set -eu
 
@@ -36,3 +39,14 @@ for f in "$DIR"/*.json; do
     || { echo "routes: PUT $id failed" >&2; exit 1; }
   echo "routes: $id"
 done
+
+if [ -f "$DIR/removed" ]; then
+  while read -r id; do
+    [ -n "$id" ] || continue
+    code=$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE "$ADMIN/routes/$id" -H "X-API-KEY: $KEY") || code=000
+    case $code in
+      2??|404) echo "routes: $id removed" ;;
+      *) echo "routes: DELETE $id failed: $code" >&2; exit 1 ;;
+    esac
+  done < "$DIR/removed"
+fi

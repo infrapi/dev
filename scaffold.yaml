@@ -53,4 +53,4 @@ skip:
 messages:
   post: |
     {{ .Project }}: domain {{ .Scaffold.domain }}, platform {{ .Scaffold.platform }}, region {{ .Scaffold.region }}, kayra {{ .Scaffold.image }}.
-    Everything else is in {{ .Project }}/dev.yaml: edit it, then infrapi-cli dev up.
+    Everything else is in {{ .Project }}/dev.yaml: edit it, then infrapi-cli dev up --force.

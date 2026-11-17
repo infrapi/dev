@@ -6,7 +6,8 @@ on podman or docker, and an example API to start yours from. Domain
 `{{ .Scaffold.domain }}`, platform `{{ .Scaffold.platform }}`, region
 `{{ .Scaffold.region }}`, Kayra `{{ .Scaffold.image }}`.
 
-Everything is configured by `dev.yaml`: edit it, then `infrapi-cli dev up`.
+Everything is configured by `dev.yaml`: edit it, then `infrapi-cli dev render`
+shows the change, `infrapi-cli dev up --force` applies it.
 
 ```bash
 infrapi-cli dev doctor      # checks podman or docker, its compose, go

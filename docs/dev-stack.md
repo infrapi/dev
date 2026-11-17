@@ -57,7 +57,8 @@ defaults.
 | I want to... | Run |
 |---|---|
 | check what is needed is installed | `infrapi-cli dev doctor` |
-| start the stack, or apply a change to `dev.yaml` | `infrapi-cli dev up` |
+| start the stack | `infrapi-cli dev up` |
+| see what a change to `dev.yaml` does, then apply it | `infrapi-cli dev render`, then `infrapi-cli dev up --force` |
 | see if it answers | `infrapi-cli dev health` |
 | see the containers, follow their logs | `infrapi-cli dev ps`, `infrapi-cli dev logs [kayra]` |
 | restart a container | `infrapi-cli dev restart kayra` |
@@ -74,8 +75,14 @@ Every command prints what it runs, `+ podman compose ... up -d` say.
 
 ## Change the stack: dev.yaml
 
-`dev.yaml` is the only file you edit. Change it, then run
-`infrapi-cli dev up`: it applies the change, and restarts what needs it.
+`dev.yaml` is the only file you edit. Change it, then:
+
+1. `infrapi-cli dev render` shows what the change does to the files the
+   stack runs with, as a diff, and writes nothing;
+2. `infrapi-cli dev up --force` writes them, and restarts what needs it.
+
+`infrapi-cli dev up` alone never changes those files: when they differ
+from what `dev.yaml` renders, it shows the diff and stops.
 
 | Setting | What it is | Default |
 |---|---|---|
@@ -101,9 +108,91 @@ What `dev up` writes into `.infrapi-dev/` (gitignored), from `dev.yaml`:
 | `env` | the domain, image and ports, for compose |
 | `example.env` | the example API's settings |
 
-Every render prints the diff of what it changed. A file edited by hand in
-`.infrapi-dev/` is put back at the next render: `infrapi-cli dev render
---dry-run` shows the diff first, and writes nothing.
+Don't edit them: they are rendered from `dev.yaml`, and an edit made by
+hand is lost at the next `--force`. A render that would change one, from
+your edit or from `dev.yaml`, is canceled: it prints the diff, says which
+setting of `dev.yaml` the file comes from, and writes nothing. `--force`
+writes it.
+
+```bash
+infrapi-cli dev up
+# --- a/kayra.yaml
+# +++ b/kayra.yaml
+# -  max_concurrent_reconciles: 50
+# +  max_concurrent_reconciles: 5
+#
+# render canceled: nothing written to …/compute/.infrapi-dev: it differs from what dev.yaml renders, the diff above.
+#
+#   The files in .infrapi-dev are rendered from dev.yaml: change dev.yaml, not them. Each file, from dev.yaml's:
+#     kayra.yaml   domain, platform, region, location, sysadmin_groups, ports.kayra, users; anything else: kayra.config
+#
+#   To keep what .infrapi-dev has, an edit made by hand say, add this to dev.yaml:
+#
+#     kayra:
+#       config:
+#         reconciler:
+#           max_concurrent_reconciles: 50
+#
+#   Then, or to write dev.yaml's change as it is:
+#     infrapi-cli dev up --force   (or infrapi-cli dev render --force)
+```
+
+Whatever you would edit there goes in `dev.yaml` instead: see
+[Override anything](#override-anything). `dev init` renders the files
+once, so the first `infrapi-cli dev up` has nothing to ask. The other commands (`ps`, `logs`, `down`, `contexts`...)
+run on the files as they are, with a warning when they differ from
+`dev.yaml`.
+
+### Override anything
+
+Every file in `.infrapi-dev/` takes overrides from `dev.yaml`, merged the
+same way: a map key by key, a list or a value replaced as a whole, `null`
+removing the key.
+
+| File | Override in `dev.yaml` |
+|---|---|
+| `kayra.yaml` | `kayra.config`, merged into Kayra's configuration; the template's comments stay |
+| `routes/*.json` | `gateway.routes.<id>`, merged into the route `<id>` as APISIX's Admin API takes it; a new id is a new route, `null` removes one |
+| `example.env` | `example.env`, variables replaced or added |
+| `env` | `compose.env`, variables replaced or added, for `compose.yaml` to read (`${MY_VAR}`) |
+| `keys/*.pem` | `kayra.keys.self`, `kayra.keys.local`: key files of your own, relative to `dev.yaml` |
+| `users.yaml` | `users` |
+
+```yaml
+kayra:
+  config:
+    reconciler:
+      max_concurrent_reconciles: 50
+gateway:
+  routes:
+    hooks:                      # the reconcile hooks answer "failed"
+      plugins:
+        mocking:
+          response_example: '{"status":"failed"}'
+    mine:                       # a route of your own
+      uri: /mine/*
+      upstream: {type: roundrobin, nodes: {"host.containers.internal:9000": 1}}
+    httpbin: null               # removed, from the gateway too
+example:
+  api: compute
+  port: 8080
+  env:
+    INFRAPI_APP_LOG_LEVEL: debug
+compose:
+  env:
+    MY_VAR: value
+```
+
+Then `infrapi-cli dev render` shows the diff, and `infrapi-cli dev up
+--force` applies it. A route set to `null` is deleted from the gateway
+too, when `gateway-init` runs, or by `infrapi-cli dev routes`. A route
+only taken out of `dev.yaml` stays in the gateway until
+`infrapi-cli dev clean`: set it to `null` instead.
+
+The files beside `dev.yaml` are yours, not rendered: edit `compose.yaml`,
+`apisix/config.yaml` or `apisix/routes.sh` as you need. A
+`compose.override.yaml` beside `compose.yaml` is read too, a service of
+your own say: infrapi-cli adds it to compose's files.
 
 ## Users and tokens
 
@@ -147,7 +236,7 @@ curl -s -X POST http://localhost:9080/oauth2/userinfo -H "Authorization: Bearer 
 ```
 
 To add a user or change their groups, edit `users` in `dev.yaml`, run
-`infrapi-cli dev up`, then `infrapi-cli dev contexts`. The contexts live in
+`infrapi-cli dev up --force`, then `infrapi-cli dev contexts`. The contexts live in
 `~/.config/infrapi/config`, beside your others (`INFRAPI_CONTEXT_FILE` to
 keep them apart).
 
@@ -187,7 +276,7 @@ back as they were.
 |---|---|---|
 | remove what I created in Kayra: namespaces, API registrations, subscriptions, RBAC | `infrapi-cli dev reset-kayra` | the routes, the keys, your contexts |
 | wipe all the stack's data | `infrapi-cli dev clean`, then `infrapi-cli dev up` | the keys and your contexts; run `infrapi-cli dev api add` again for your API's route |
-| make every token invalid, new keys | `infrapi-cli dev clean`, `infrapi-cli dev up --new-keys`, then `infrapi-cli dev contexts` | nothing of the tokens: every earlier one gets a 401 |
+| make every token invalid, new keys | `infrapi-cli dev clean`, `infrapi-cli dev up --new-keys --force`, then `infrapi-cli dev contexts` | nothing of the tokens: every earlier one gets a 401 |
 | remove the stack from my machine | see below | your other contexts |
 
 `reset-kayra` and `clean` also invalidate personal access tokens: their key
@@ -230,7 +319,7 @@ For example, `infrapi-cli dev up --compose "nerdctl compose" --host-alias host.l
 ### Run Kayra from a checkout
 
 Set `kayra.src` in `dev.yaml` to a Kayra checkout, `../kayra` say, relative
-to the stack. `infrapi-cli dev up` then builds the image `kayra-dev:local`
+to the stack. `infrapi-cli dev up --force` then builds the image `kayra-dev:local`
 from it (`infrapi-cli dev build` builds it alone), and runs it instead of
 `kayra.image`.
 
@@ -238,11 +327,11 @@ from it (`infrapi-cli dev build` builds it alone), and runs it instead of
 
 `.infrapi-dev/kayra.yaml` is rendered from `dev.yaml` and a template
 embedded in infrapi-cli,
-[`internal/dev/templates/kayra.yaml.tmpl`](https://github.com/infrapi/cli/blob/main/internal/dev/templates/kayra.yaml.tmpl).
-What `dev.yaml` does not cover, the reconcile pipeline say, is changed
-there: the template uses `[[ ]]`, so Kayra's own `{{ .Subscription... }}`
-stay as they are. `infrapi-cli dev up` with that infrapi-cli renders it
-again, with the same keys, and restarts both Kayra containers.
+[`internal/dev/templates/kayra.yaml.tmpl`](https://github.com/infrapi/cli/blob/main/internal/dev/templates/kayra.yaml.tmpl),
+then `kayra.config` is merged in: see [Override anything](#override-anything).
+The reconcile pipeline, say, is `kayra.config.reconciler.mode.dev`.
+`infrapi-cli dev up --force` renders it again, with the same keys, and
+restarts both Kayra containers.
 
 Kayra has two token providers, both signing with the stack's keys:
 

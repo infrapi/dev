@@ -67,7 +67,7 @@ one question, for a script say. It creates `./compute`:
 
 ```text
 compute/
-  dev.yaml             the stack's settings, your answers in it: edit it, then infrapi-cli dev up
+  dev.yaml             the stack's settings, your answers in it: edit it, then infrapi-cli dev up --force
   compose.yaml         the containers: etcd, kayra, reconciler, apisix, gateway-init, httpbin
   compose.docker.yaml  docker only: gives the gateway the host's address
   apisix/              the gateway's configuration

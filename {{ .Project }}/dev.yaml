@@ -1,9 +1,14 @@
 # {{ .Project }}: an InfraPI dev stack, scaffolded by infrapi-cli dev init.
 #
 # The dev stack's settings. Every file the stack runs with is rendered from
-# this one into .infrapi-dev/ (infrapi-cli dev render, and dev up renders first):
-# Kayra's configuration and users, the gateway's routes, the ports, the
-# example API's settings. Edit it, then infrapi-cli dev up. See docs/dev-stack.md.
+# this one into .infrapi-dev/: Kayra's configuration and users, the gateway's
+# routes, the ports, the example API's settings. Edit it, then
+# infrapi-cli dev render shows the diff, and infrapi-cli dev up --force
+# applies it. Don't edit .infrapi-dev/: dev up stops on any change there.
+# Anything a rendered file has can be overridden here: kayra.config,
+# kayra.keys, gateway.routes, example.env, compose.env. A map is merged key
+# by key, a list or a value replaced, null removes the key.
+# See docs/dev-stack.md.
 
 # Kayra's app.api_domain. Its own groups are system.<domain>,
 # catalog.<domain> and authorization.<domain>, and every API below is
@@ -19,6 +24,30 @@ kayra:
   # Or build it from a checkout instead (infrapi-cli dev build): set src, and image
   # is ignored.
   # src: ../kayra
+  # Merged into .infrapi-dev/kayra.yaml, Kayra's configuration.
+  # config:
+  #   reconciler:
+  #     max_concurrent_reconciles: 50
+  # Signing keys of your own (PEM), relative to this file, instead of the
+  # generated ones.
+  # keys:
+  #   self: keys/self.pem
+  #   local: keys/local.pem
+
+# The gateway's own routes (kayra, openapi-stub, hooks, healthz, httpbin),
+# merged by id, as APISIX's Admin API takes a route: a new id is a new
+# route, null removes one. Your API's route: infrapi-cli dev api add.
+# gateway:
+#   routes:
+#     hooks:
+#       plugins: {mocking: {response_example: '{"status":"failed"}'}}
+#     httpbin: null
+
+# Added to, or replacing in, .infrapi-dev/env, the variables compose.yaml
+# reads. A compose.override.yaml beside compose.yaml is read too.
+# compose:
+#   env:
+#     MY_VAR: value
 
 # Where the stack listens, on 127.0.0.1.
 ports:
@@ -53,3 +82,6 @@ users:
 example:
   api: compute       # its group: <name>.<domain>, compute.{{ .Scaffold.domain }}
   port: 8080         # on the host, where the gateway reaches it
+  # Added to, or replacing in, .infrapi-dev/example.env, its settings.
+  # env:
+  #   INFRAPI_APP_LOG_LEVEL: debug
